@@ -1,0 +1,12 @@
+{
+  "expo": {
+    "name": "Poohter Seller",
+    "slug": "poohter-seller-website",
+    "version": "1.0.0",
+    "platforms": ["web"],
+    "web": {
+      "bundler": "metro",
+      "output": "single"
+    }
+  }
+}

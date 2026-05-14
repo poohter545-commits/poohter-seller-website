@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Poohter Seller Dashboard</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260513-workflow" />
+  </head>
+  <body>
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    <section class="auth-screen" id="authScreen">
+      <div class="auth-card" id="authCard">
+        <div class="brand-header">
+          <div class="brand-row">
+            <span class="brand-mark">P</span>
+            <span>POOHTER</span>
+          </div>
+          <p>A Trust Where Quality Matters</p>
+        </div>
+
+        <div class="mode-switch" role="tablist" aria-label="Authentication mode">
+          <button class="mode active" id="loginMode" type="button">Login</button>
+          <button class="mode" id="signupMode" type="button">Sign Up</button>
+        </div>
+
+        <form class="auth-form" id="loginForm">
+          <h1>Seller Sign In</h1>
+          <p>Enter your Poohter seller dashboard.</p>
+          <label>Email <input name="email" type="email" required autocomplete="email" placeholder="seller@mail.com" /></label>
+          <label>Password <input name="password" type="password" required autocomplete="current-password" placeholder="Password" /></label>
+          <button class="primary-btn" type="submit">Enter Dashboard</button>
+        </form>
+
+        <form class="auth-form hidden" id="signupForm">
+          <h1>Create Seller Account</h1>
+          <p>Complete your seller profile to submit for admin approval.</p>
+          <div class="stepper" aria-label="Seller registration steps">
+            <span class="step-pill active" data-step-pill="1">1<small>Basic</small></span>
+            <span class="step-pill" data-step-pill="2">2<small>Business</small></span>
+            <span class="step-pill" data-step-pill="3">3<small>Identity</small></span>
+            <span class="step-pill" data-step-pill="4">4<small>Payment</small></span>
+          </div>
+
+          <div class="form-step active" data-signup-step="1">
+            <div class="form-grid compact">
+              <label>Owner name <input name="name" required /></label>
+              <label>Email <input name="email" type="email" required /></label>
+              <label>Password <input name="password" type="password" required /></label>
+              <label>Confirm password <input name="confirmPassword" type="password" required /></label>
+              <label>Phone <input name="phone" required /></label>
+            </div>
+          </div>
+
+          <div class="form-step" data-signup-step="2">
+            <div class="form-grid compact">
+              <label>Shop name <input name="shop_name" required /></label>
+              <label>Business type <input name="business_type" placeholder="Fashion, home, grocery..." /></label>
+              <label>City <input name="city" required /></label>
+            </div>
+          </div>
+
+          <div class="form-step" data-signup-step="3">
+            <div class="form-grid compact">
+              <label>CNIC number <input name="cnic_number" required placeholder="xxxxx-xxxxxxx-x" /></label>
+              <label>CNIC front <input name="cnic_front" type="file" accept="image/png,image/jpeg" /></label>
+              <label>CNIC back <input name="cnic_back" type="file" accept="image/png,image/jpeg" /></label>
+            </div>
+          </div>
+
+          <div class="form-step" data-signup-step="4">
+            <div class="form-grid compact">
+              <label>Bank name <input name="bank_name" /></label>
+              <label>Account title <input name="account_title" /></label>
+              <label>Account number <input name="account_number" /></label>
+              <label>Mobile wallet <input name="mobile_wallet" /></label>
+            </div>
+          </div>
+
+          <div class="signup-actions">
+            <button class="outline-btn hidden" id="signupPrev" type="button">Back</button>
+            <button class="primary-btn" id="signupNext" type="button">Continue</button>
+            <button class="primary-btn hidden" id="signupSubmit" type="submit">Create Seller Account</button>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <div class="app hidden" id="appShell">
+      <aside class="sidebar">
+        <a class="side-brand" href="#overview">
+          <span class="brand-mark">P</span>
+          <span>POOHTER</span>
+        </a>
+        <nav class="nav">
+          <a class="active" href="#overview">Dashboard</a>
+          <a href="#products">My Products</a>
+          <a href="#wholesale">Wholesale Supplies</a>
+          <a href="#orders">Order List</a>
+          <a href="#create">Add Product</a>
+          <a href="#payouts">Payouts</a>
+          <a href="#profile">Profile</a>
+        </nav>
+        <button class="logout" id="logoutBtn" type="button">Logout</button>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div>
+            <span class="top-kicker">Seller Center</span>
+            <h1 id="storeTitle">Seller dashboard</h1>
+            <p id="storeSubtitle">Connected to backend API</p>
+          </div>
+          <div class="top-actions">
+            <button class="outline-btn" id="refreshBtn" type="button">Refresh</button>
+            <a class="primary-link" href="#create">Add Product</a>
+            <div class="avatar" id="sellerAvatar">P</div>
+          </div>
+        </header>
+
+        <div class="content-body">
+          <section id="overview" class="section-header">
+            <div>
+              <span class="top-kicker">Operations</span>
+              <h2>Dashboard Overview</h2>
+              <p id="accountStatus">Checking account status</p>
+            </div>
+            <div class="attention-pill"><strong id="attentionCount">0</strong> need attention</div>
+          </section>
+
+          <section class="stats-grid">
+            <article class="stat-card"><span class="stat-icon blue">P</span><div><h3>Total Products</h3><p id="productCount">0</p></div></article>
+            <article class="stat-card"><span class="stat-icon green">O</span><div><h3>Total Orders</h3><p id="orderCount">0</p></div></article>
+            <article class="stat-card"><span class="stat-icon yellow">Rs</span><div><h3>Total Sales</h3><p id="revenueTotal">Rs 0</p></div></article>
+            <article class="stat-card"><span class="stat-icon red">!</span><div><h3>Low Stock</h3><p id="lowStockCount">0</p></div></article>
+            <article class="stat-card"><span class="stat-icon green">Pay</span><div><h3>Pending Payout</h3><p id="pendingPayoutTotal">Rs 0</p></div></article>
+          </section>
+
+          <section class="data-card stock-card">
+            <div class="card-head"><h2>Recent Stock Alerts</h2></div>
+            <div class="stock-alerts" id="stockAlerts"></div>
+          </section>
+
+          <section class="content-grid">
+            <article class="data-card" id="products">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Catalog</p>
+                  <h2>My Product Catalog</h2>
+                </div>
+                <input class="search" id="productSearch" type="search" placeholder="Search products" />
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Product Name</th><th>Price</th><th>Expected Stock</th><th>Status</th><th>Media</th><th>Receipt</th></tr></thead>
+                  <tbody id="productsList"></tbody>
+                </table>
+              </div>
+            </article>
+
+            <article class="data-card" id="orders">
+              <div class="panel-head">
+                <div>
+                  <p class="eyebrow">Fulfillment</p>
+                  <h2>Seller Orders</h2>
+                </div>
+                <select id="orderFilter" aria-label="Filter orders">
+                  <option value="all">All orders</option>
+                  <option value="pending">Pending</option>
+                  <option value="accepted">Accepted</option>
+                  <option value="packed">Packed</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="successful">Successful</option>
+                </select>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead><tr><th>Order #</th><th>Items</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody id="ordersList"></tbody>
+                </table>
+              </div>
+            </article>
+          </section>
+
+          <section class="data-card wholesale-panel" id="wholesale">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Supplier Market</p>
+                <h2>Wholesale Supplies</h2>
+              </div>
+              <span class="muted">Minimum order is 25 units</span>
+            </div>
+            <div class="wholesale-grid" id="wholesaleProducts"></div>
+            <div class="panel-head subhead">
+              <div>
+                <p class="eyebrow">Investment Requests</p>
+                <h2>My Wholesale Orders</h2>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Order</th><th>Product</th><th>Qty</th><th>Total</th><th>Status</th></tr></thead>
+                <tbody id="wholesaleOrdersList"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="data-card create-panel" id="create">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">New Listing</p>
+                <h2>Add Product</h2>
+              </div>
+              <span class="muted">Connected to seller products API</span>
+            </div>
+            <form id="productForm" class="form-grid">
+              <label class="with-action">Product name
+                <span class="input-action-row">
+                  <input name="name" id="productNameInput" required placeholder="Printed lawn suit" />
+                  <button class="outline-btn translate-btn" id="translateProductName" type="button">Translate</button>
+                </span>
+              </label>
+              <label>Urdu name <input name="name_urdu" dir="rtl" placeholder="Optional display field" /></label>
+              <label>Price <input name="price" type="number" min="1" required placeholder="3200" /></label>
+              <label>Expected stock <input name="expected_stock" type="number" min="0" value="0" /></label>
+              <label class="wide">Description <textarea name="description" required placeholder="Describe material, quality, and buyer benefits."></textarea></label>
+              <label>Product images <input name="product_images" type="file" accept="image/png,image/jpeg" multiple /></label>
+              <label>Product video <input name="product_video" type="file" accept="video/mp4" /></label>
+              <label class="checkbox-field wide">
+                <input name="admin_media_required" type="checkbox" value="true" />
+                <span>Ask admin team to create product photos and video</span>
+              </label>
+              <button class="primary-btn" type="submit">Submit Product</button>
+            </form>
+          </section>
+
+          <section class="data-card payout-panel" id="payouts">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Payments</p>
+                <h2>Seller Payouts</h2>
+              </div>
+              <span class="muted" id="payoutRateLabel">Seller payout tracking</span>
+            </div>
+            <div class="payout-summary" id="payoutSummary"></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Payout</th><th>Amount</th><th>Method</th><th>Reference</th><th>Sent Date</th></tr></thead>
+                <tbody id="payoutsList"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="data-card profile-panel" id="profile">
+            <div class="panel-head">
+              <div>
+                <p class="eyebrow">Store Profile</p>
+                <h2>Seller Details</h2>
+              </div>
+            </div>
+            <div class="profile-grid" id="profileGrid"></div>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <script src="app.js?v=20260514-payouts"></script>
+  </body>
+</html>
