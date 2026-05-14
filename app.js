@@ -485,10 +485,13 @@ on("#signupForm", "submit", async (event) => {
   if (!back?.size) formData.delete("cnic_back");
   try {
     const result = await api("/seller/register", { method: "POST", body: formData });
-    setSession({ token: result.token, seller: result.seller });
-    showApp(true);
-    await loadDashboard();
-    showToast("Seller account created", "success");
+    event.currentTarget.reset();
+    $("#loginMode").classList.add("active");
+    $("#signupMode").classList.remove("active");
+    $("#loginForm").classList.remove("hidden");
+    $("#signupForm").classList.add("hidden");
+    setSignupStep(1);
+    showToast(result.message || "Seller account submitted. Admin approval is required before login.", "success");
   } catch (error) {
     showToast(error.message, "error");
   }
