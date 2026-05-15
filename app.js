@@ -17,6 +17,7 @@ const state = {
   orders: [],
   wholesaleProducts: [],
   wholesaleOrders: [],
+  selectedWholesalerId: "",
   payouts: null,
   profile: null,
   signupStep: 1,
@@ -64,6 +65,7 @@ const clearSession = () => {
   state.orders = [];
   state.wholesaleProducts = [];
   state.wholesaleOrders = [];
+  state.selectedWholesalerId = "";
   state.payouts = null;
   state.profile = null;
   localStorage.removeItem("poohterSellerToken");
@@ -357,9 +359,63 @@ const renderWholesale = () => {
   const orderWrap = $("#wholesaleOrdersList");
   if (!productWrap || !orderWrap) return;
 
-  productWrap.innerHTML = products.length
-    ? products
-        .map((product) => {
+  const wholesalers = [...products.reduce((map, product) => {
+    const id = String(product.wholesaler_id || "");
+    if (!id) return map;
+    const current = map.get(id) || {
+      id,
+      shop: product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier",
+      city: product.wholesaler_city || "Wholesale city",
+      phone: product.wholesaler_phone || "",
+      products: [],
+    };
+    current.products.push(product);
+    map.set(id, current);
+    return map;
+  }, new Map()).values()];
+
+  if (state.selectedWholesalerId && !wholesalers.some((wholesaler) => wholesaler.id === state.selectedWholesalerId)) {
+    state.selectedWholesalerId = "";
+  }
+
+  const selectedWholesaler = wholesalers.find((wholesaler) => wholesaler.id === state.selectedWholesalerId);
+
+  if (!products.length) {
+    productWrap.innerHTML = `<div class="stock-ok">No wholesale products are available yet.</div>`;
+  } else if (!selectedWholesaler) {
+    productWrap.innerHTML = `
+      <div class="wholesale-directory">
+        ${wholesalers.map((wholesaler) => {
+          const stock = wholesaler.products.reduce((sum, product) => sum + Number(product.available_stock || 0), 0);
+          return `
+            <article class="wholesaler-card">
+              <div>
+                <span class="muted">Wholesaler</span>
+                <h3>${wholesaler.shop}</h3>
+                <p>${wholesaler.city}${wholesaler.phone ? ` - ${wholesaler.phone}` : ""}</p>
+              </div>
+              <div class="wholesale-meta">
+                <span>${wholesaler.products.length} products</span>
+                <span>${stock} units available</span>
+              </div>
+              <button class="mini-btn" type="button" data-wholesaler-id="${wholesaler.id}">View products</button>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  } else {
+    productWrap.innerHTML = `
+      <div class="wholesale-selected-head">
+        <div>
+          <span class="muted">Selected wholesaler</span>
+          <h3>${selectedWholesaler.shop}</h3>
+          <p>${selectedWholesaler.city}${selectedWholesaler.phone ? ` - ${selectedWholesaler.phone}` : ""}</p>
+        </div>
+        <button class="outline-btn" type="button" data-wholesale-back>All wholesalers</button>
+      </div>
+      <div class="wholesale-product-list">
+        ${selectedWholesaler.products.map((product) => {
           const minOrder = Math.max(25, Number(product.min_order_quantity || 25));
           const image = uploadUrl(product.image_url);
           return `
@@ -384,9 +440,10 @@ const renderWholesale = () => {
               </div>
             </article>
           `;
-        })
-        .join("")
-    : `<div class="stock-ok">No wholesale products are available yet.</div>`;
+        }).join("")}
+      </div>
+    `;
+  }
 
   orderWrap.innerHTML = orders.length
     ? orders
@@ -584,6 +641,18 @@ on("#wholesaleProducts", "submit", async (event) => {
     showToast("Wholesale request sent to admin", "success");
   } catch (error) {
     showToast(error.message, "error");
+  }
+});
+on("#wholesaleProducts", "click", (event) => {
+  const wholesalerButton = event.target.closest("[data-wholesaler-id]");
+  const backButton = event.target.closest("[data-wholesale-back]");
+  if (wholesalerButton) {
+    state.selectedWholesalerId = wholesalerButton.dataset.wholesalerId;
+    renderWholesale();
+  }
+  if (backButton) {
+    state.selectedWholesalerId = "";
+    renderWholesale();
   }
 });
 on("#refreshBtn", "click", loadDashboard);
