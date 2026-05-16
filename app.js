@@ -21,6 +21,8 @@ const state = {
   payouts: null,
   profile: null,
   signupStep: 1,
+  signupOtpPending: false,
+  resetOtpSent: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -77,6 +79,14 @@ const showApp = (isAuthed) => {
   $("#appShell").classList.toggle("hidden", !isAuthed);
 };
 
+const showAuthMode = (mode) => {
+  $("#loginMode").classList.toggle("active", mode === "login");
+  $("#signupMode").classList.toggle("active", mode === "signup");
+  $("#loginForm").classList.toggle("hidden", mode !== "login");
+  $("#signupForm").classList.toggle("hidden", mode !== "signup");
+  $("#resetForm").classList.toggle("hidden", mode !== "reset");
+};
+
 const setSignupStep = (step) => {
   state.signupStep = Math.max(1, Math.min(4, step));
   document.querySelectorAll("[data-signup-step]").forEach((section) => {
@@ -90,6 +100,23 @@ const setSignupStep = (step) => {
   $("#signupPrev").classList.toggle("hidden", state.signupStep === 1);
   $("#signupNext").classList.toggle("hidden", state.signupStep === 4);
   $("#signupSubmit").classList.toggle("hidden", state.signupStep !== 4);
+};
+
+const setSignupOtpMode = (enabled) => {
+  state.signupOtpPending = enabled;
+  $("#signupOtpPanel").classList.toggle("hidden", !enabled);
+  const otpInput = $("#signupOtpPanel input[name='otp']");
+  if (otpInput) otpInput.required = enabled;
+  $("#signupSubmit").textContent = enabled ? "Verify Email & Submit" : "Create Seller Account";
+};
+
+const setResetOtpMode = (enabled) => {
+  state.resetOtpSent = enabled;
+  $("#resetOtpPanel").classList.toggle("hidden", !enabled);
+  $("#resetSubmit").textContent = enabled ? "Change Password" : "Send Reset Code";
+  $("#resetOtpPanel").querySelectorAll("input").forEach((input) => {
+    input.required = enabled;
+  });
 };
 
 const validateSignupStep = () => {
@@ -493,18 +520,23 @@ const loadDashboard = async () => {
 };
 
 on("#loginMode", "click", () => {
-  $("#loginMode").classList.add("active");
-  $("#signupMode").classList.remove("active");
-  $("#loginForm").classList.remove("hidden");
-  $("#signupForm").classList.add("hidden");
+  showAuthMode("login");
 });
 
 on("#signupMode", "click", () => {
-  $("#signupMode").classList.add("active");
-  $("#loginMode").classList.remove("active");
-  $("#signupForm").classList.remove("hidden");
-  $("#loginForm").classList.add("hidden");
+  showAuthMode("signup");
+  setSignupOtpMode(false);
   setSignupStep(1);
+});
+
+on("#forgotPassword", "click", () => {
+  $("#resetForm input[name='email']").value = $("#loginForm input[name='email']").value;
+  setResetOtpMode(false);
+  showAuthMode("reset");
+});
+
+on("#resetBack", "click", () => {
+  showAuthMode("login");
 });
 
 on("#signupNext", "click", () => {
@@ -535,22 +567,86 @@ on("#loginForm", "submit", async (event) => {
 
 on("#signupForm", "submit", async (event) => {
   event.preventDefault();
+  const submitButton = $("#signupSubmit");
+  const originalText = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = state.signupOtpPending ? "Verifying..." : "Sending OTP...";
   const formData = new FormData(event.currentTarget);
   const front = formData.get("cnic_front");
   const back = formData.get("cnic_back");
   if (!front?.size) formData.delete("cnic_front");
   if (!back?.size) formData.delete("cnic_back");
   try {
-    const result = await api("/seller/register", { method: "POST", body: formData });
+    const result = state.signupOtpPending
+      ? await api("/seller/register/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.get("email"),
+          otp: formData.get("otp"),
+        }),
+      })
+      : await api("/seller/register", { method: "POST", body: formData });
+    if (result.requiresOtp) {
+      setSignupOtpMode(true);
+      showToast(result.message || "OTP sent to your email.", "success");
+      return;
+    }
     event.currentTarget.reset();
-    $("#loginMode").classList.add("active");
-    $("#signupMode").classList.remove("active");
-    $("#loginForm").classList.remove("hidden");
-    $("#signupForm").classList.add("hidden");
+    showAuthMode("login");
+    setSignupOtpMode(false);
     setSignupStep(1);
     showToast(result.message || "Seller account submitted. Admin approval is required before login.", "success");
   } catch (error) {
     showToast(error.message, "error");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = state.signupOtpPending ? "Verify Email & Submit" : originalText;
+  }
+});
+
+on("#resetForm", "submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const submitButton = $("#resetSubmit");
+  submitButton.disabled = true;
+  submitButton.textContent = state.resetOtpSent ? "Changing..." : "Sending...";
+  try {
+    const email = form.get("email");
+    if (!state.resetOtpSent) {
+      const result = await api("/auth/password/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, accountType: "seller" }),
+      });
+      setResetOtpMode(true);
+      showToast(result.message || "Reset OTP sent to your email.", "success");
+      return;
+    }
+    if (form.get("password") !== form.get("confirmPassword")) {
+      showToast("Passwords do not match.", "error");
+      return;
+    }
+    const result = await api("/auth/password/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        accountType: "seller",
+        otp: form.get("otp"),
+        password: form.get("password"),
+        confirmPassword: form.get("confirmPassword"),
+      }),
+    });
+    event.currentTarget.reset();
+    setResetOtpMode(false);
+    showAuthMode("login");
+    showToast(result.message || "Password changed. Please login.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    submitButton.disabled = false;
+    setResetOtpMode(state.resetOtpSent);
   }
 });
 

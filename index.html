@@ -32,7 +32,23 @@
           <p>Enter your Poohter seller dashboard.</p>
           <label>Email <input name="email" type="email" required autocomplete="email" placeholder="seller@mail.com" /></label>
           <label>Password <input name="password" type="password" required autocomplete="current-password" placeholder="Password" /></label>
+          <button class="text-link" id="forgotPassword" type="button">Forgot password?</button>
           <button class="primary-btn" type="submit">Enter Dashboard</button>
+        </form>
+
+        <form class="auth-form hidden" id="resetForm">
+          <h1>Reset Seller Password</h1>
+          <p>We will send an OTP to your seller email.</p>
+          <label>Email <input name="email" type="email" required autocomplete="email" placeholder="seller@mail.com" /></label>
+          <div class="otp-panel hidden" id="resetOtpPanel">
+            <label>Email OTP <input name="otp" inputmode="numeric" maxlength="6" placeholder="6 digit code" /></label>
+            <label>New password <input name="password" type="password" minlength="6" /></label>
+            <label>Confirm password <input name="confirmPassword" type="password" minlength="6" /></label>
+          </div>
+          <div class="signup-actions">
+            <button class="outline-btn" id="resetBack" type="button">Back</button>
+            <button class="primary-btn" id="resetSubmit" type="submit">Send Reset Code</button>
+          </div>
         </form>
 
         <form class="auth-form hidden" id="signupForm">
@@ -78,6 +94,11 @@
               <label>Account number <input name="account_number" /></label>
               <label>Mobile wallet <input name="mobile_wallet" /></label>
             </div>
+          </div>
+
+          <div class="otp-panel hidden" id="signupOtpPanel">
+            <label>Email OTP <input name="otp" inputmode="numeric" maxlength="6" placeholder="6 digit code" /></label>
+            <p>Check your seller email and enter the code to submit this application.</p>
           </div>
 
           <div class="signup-actions">

@@ -17,9 +17,12 @@ const state = {
   orders: [],
   wholesaleProducts: [],
   wholesaleOrders: [],
+  selectedWholesalerId: "",
   payouts: null,
   profile: null,
   signupStep: 1,
+  signupOtpPending: false,
+  resetOtpSent: false,
 };
 
 const $ = (selector) => document.querySelector(selector);
@@ -64,6 +67,7 @@ const clearSession = () => {
   state.orders = [];
   state.wholesaleProducts = [];
   state.wholesaleOrders = [];
+  state.selectedWholesalerId = "";
   state.payouts = null;
   state.profile = null;
   localStorage.removeItem("poohterSellerToken");
@@ -73,6 +77,14 @@ const clearSession = () => {
 const showApp = (isAuthed) => {
   $("#authScreen").classList.toggle("hidden", isAuthed);
   $("#appShell").classList.toggle("hidden", !isAuthed);
+};
+
+const showAuthMode = (mode) => {
+  $("#loginMode").classList.toggle("active", mode === "login");
+  $("#signupMode").classList.toggle("active", mode === "signup");
+  $("#loginForm").classList.toggle("hidden", mode !== "login");
+  $("#signupForm").classList.toggle("hidden", mode !== "signup");
+  $("#resetForm").classList.toggle("hidden", mode !== "reset");
 };
 
 const setSignupStep = (step) => {
@@ -88,6 +100,23 @@ const setSignupStep = (step) => {
   $("#signupPrev").classList.toggle("hidden", state.signupStep === 1);
   $("#signupNext").classList.toggle("hidden", state.signupStep === 4);
   $("#signupSubmit").classList.toggle("hidden", state.signupStep !== 4);
+};
+
+const setSignupOtpMode = (enabled) => {
+  state.signupOtpPending = enabled;
+  $("#signupOtpPanel").classList.toggle("hidden", !enabled);
+  const otpInput = $("#signupOtpPanel input[name='otp']");
+  if (otpInput) otpInput.required = enabled;
+  $("#signupSubmit").textContent = enabled ? "Verify Email & Submit" : "Create Seller Account";
+};
+
+const setResetOtpMode = (enabled) => {
+  state.resetOtpSent = enabled;
+  $("#resetOtpPanel").classList.toggle("hidden", !enabled);
+  $("#resetSubmit").textContent = enabled ? "Change Password" : "Send Reset Code";
+  $("#resetOtpPanel").querySelectorAll("input").forEach((input) => {
+    input.required = enabled;
+  });
 };
 
 const validateSignupStep = () => {
@@ -357,9 +386,63 @@ const renderWholesale = () => {
   const orderWrap = $("#wholesaleOrdersList");
   if (!productWrap || !orderWrap) return;
 
-  productWrap.innerHTML = products.length
-    ? products
-        .map((product) => {
+  const wholesalers = [...products.reduce((map, product) => {
+    const id = String(product.wholesaler_id || "");
+    if (!id) return map;
+    const current = map.get(id) || {
+      id,
+      shop: product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier",
+      city: product.wholesaler_city || "Wholesale city",
+      phone: product.wholesaler_phone || "",
+      products: [],
+    };
+    current.products.push(product);
+    map.set(id, current);
+    return map;
+  }, new Map()).values()];
+
+  if (state.selectedWholesalerId && !wholesalers.some((wholesaler) => wholesaler.id === state.selectedWholesalerId)) {
+    state.selectedWholesalerId = "";
+  }
+
+  const selectedWholesaler = wholesalers.find((wholesaler) => wholesaler.id === state.selectedWholesalerId);
+
+  if (!products.length) {
+    productWrap.innerHTML = `<div class="stock-ok">No wholesale products are available yet.</div>`;
+  } else if (!selectedWholesaler) {
+    productWrap.innerHTML = `
+      <div class="wholesale-directory">
+        ${wholesalers.map((wholesaler) => {
+          const stock = wholesaler.products.reduce((sum, product) => sum + Number(product.available_stock || 0), 0);
+          return `
+            <article class="wholesaler-card">
+              <div>
+                <span class="muted">Wholesaler</span>
+                <h3>${wholesaler.shop}</h3>
+                <p>${wholesaler.city}${wholesaler.phone ? ` - ${wholesaler.phone}` : ""}</p>
+              </div>
+              <div class="wholesale-meta">
+                <span>${wholesaler.products.length} products</span>
+                <span>${stock} units available</span>
+              </div>
+              <button class="mini-btn" type="button" data-wholesaler-id="${wholesaler.id}">View products</button>
+            </article>
+          `;
+        }).join("")}
+      </div>
+    `;
+  } else {
+    productWrap.innerHTML = `
+      <div class="wholesale-selected-head">
+        <div>
+          <span class="muted">Selected wholesaler</span>
+          <h3>${selectedWholesaler.shop}</h3>
+          <p>${selectedWholesaler.city}${selectedWholesaler.phone ? ` - ${selectedWholesaler.phone}` : ""}</p>
+        </div>
+        <button class="outline-btn" type="button" data-wholesale-back>All wholesalers</button>
+      </div>
+      <div class="wholesale-product-list">
+        ${selectedWholesaler.products.map((product) => {
           const minOrder = Math.max(25, Number(product.min_order_quantity || 25));
           const image = uploadUrl(product.image_url);
           return `
@@ -384,9 +467,10 @@ const renderWholesale = () => {
               </div>
             </article>
           `;
-        })
-        .join("")
-    : `<div class="stock-ok">No wholesale products are available yet.</div>`;
+        }).join("")}
+      </div>
+    `;
+  }
 
   orderWrap.innerHTML = orders.length
     ? orders
@@ -436,18 +520,23 @@ const loadDashboard = async () => {
 };
 
 on("#loginMode", "click", () => {
-  $("#loginMode").classList.add("active");
-  $("#signupMode").classList.remove("active");
-  $("#loginForm").classList.remove("hidden");
-  $("#signupForm").classList.add("hidden");
+  showAuthMode("login");
 });
 
 on("#signupMode", "click", () => {
-  $("#signupMode").classList.add("active");
-  $("#loginMode").classList.remove("active");
-  $("#signupForm").classList.remove("hidden");
-  $("#loginForm").classList.add("hidden");
+  showAuthMode("signup");
+  setSignupOtpMode(false);
   setSignupStep(1);
+});
+
+on("#forgotPassword", "click", () => {
+  $("#resetForm input[name='email']").value = $("#loginForm input[name='email']").value;
+  setResetOtpMode(false);
+  showAuthMode("reset");
+});
+
+on("#resetBack", "click", () => {
+  showAuthMode("login");
 });
 
 on("#signupNext", "click", () => {
@@ -478,22 +567,86 @@ on("#loginForm", "submit", async (event) => {
 
 on("#signupForm", "submit", async (event) => {
   event.preventDefault();
+  const submitButton = $("#signupSubmit");
+  const originalText = submitButton.textContent;
+  submitButton.disabled = true;
+  submitButton.textContent = state.signupOtpPending ? "Verifying..." : "Sending OTP...";
   const formData = new FormData(event.currentTarget);
   const front = formData.get("cnic_front");
   const back = formData.get("cnic_back");
   if (!front?.size) formData.delete("cnic_front");
   if (!back?.size) formData.delete("cnic_back");
   try {
-    const result = await api("/seller/register", { method: "POST", body: formData });
+    const result = state.signupOtpPending
+      ? await api("/seller/register/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: formData.get("email"),
+          otp: formData.get("otp"),
+        }),
+      })
+      : await api("/seller/register", { method: "POST", body: formData });
+    if (result.requiresOtp) {
+      setSignupOtpMode(true);
+      showToast(result.message || "OTP sent to your email.", "success");
+      return;
+    }
     event.currentTarget.reset();
-    $("#loginMode").classList.add("active");
-    $("#signupMode").classList.remove("active");
-    $("#loginForm").classList.remove("hidden");
-    $("#signupForm").classList.add("hidden");
+    showAuthMode("login");
+    setSignupOtpMode(false);
     setSignupStep(1);
     showToast(result.message || "Seller account submitted. Admin approval is required before login.", "success");
   } catch (error) {
     showToast(error.message, "error");
+  } finally {
+    submitButton.disabled = false;
+    submitButton.textContent = state.signupOtpPending ? "Verify Email & Submit" : originalText;
+  }
+});
+
+on("#resetForm", "submit", async (event) => {
+  event.preventDefault();
+  const form = new FormData(event.currentTarget);
+  const submitButton = $("#resetSubmit");
+  submitButton.disabled = true;
+  submitButton.textContent = state.resetOtpSent ? "Changing..." : "Sending...";
+  try {
+    const email = form.get("email");
+    if (!state.resetOtpSent) {
+      const result = await api("/auth/password/forgot", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, accountType: "seller" }),
+      });
+      setResetOtpMode(true);
+      showToast(result.message || "Reset OTP sent to your email.", "success");
+      return;
+    }
+    if (form.get("password") !== form.get("confirmPassword")) {
+      showToast("Passwords do not match.", "error");
+      return;
+    }
+    const result = await api("/auth/password/reset", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        email,
+        accountType: "seller",
+        otp: form.get("otp"),
+        password: form.get("password"),
+        confirmPassword: form.get("confirmPassword"),
+      }),
+    });
+    event.currentTarget.reset();
+    setResetOtpMode(false);
+    showAuthMode("login");
+    showToast(result.message || "Password changed. Please login.", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  } finally {
+    submitButton.disabled = false;
+    setResetOtpMode(state.resetOtpSent);
   }
 });
 
@@ -584,6 +737,18 @@ on("#wholesaleProducts", "submit", async (event) => {
     showToast("Wholesale request sent to admin", "success");
   } catch (error) {
     showToast(error.message, "error");
+  }
+});
+on("#wholesaleProducts", "click", (event) => {
+  const wholesalerButton = event.target.closest("[data-wholesaler-id]");
+  const backButton = event.target.closest("[data-wholesale-back]");
+  if (wholesalerButton) {
+    state.selectedWholesalerId = wholesalerButton.dataset.wholesalerId;
+    renderWholesale();
+  }
+  if (backButton) {
+    state.selectedWholesalerId = "";
+    renderWholesale();
   }
 });
 on("#refreshBtn", "click", loadDashboard);
