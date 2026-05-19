@@ -27,6 +27,13 @@ const state = {
   otpResends: { signup: 0, reset: 0 },
 };
 
+const approvalPendingMessage = "Waiting for admin approval. Your seller application was submitted successfully and is still under review. You can log in after admin approves your account.";
+
+const isApprovalPendingError = (message = "") => {
+  const normalized = String(message).toLowerCase();
+  return normalized.includes("admin approval") || normalized.includes("pending approval") || normalized.includes("waiting for admin approval");
+};
+
 const $ = (selector) => document.querySelector(selector);
 const toast = $("#toast");
 
@@ -35,10 +42,10 @@ const on = (selector, eventName, handler) => {
   if (element) element.addEventListener(eventName, handler);
 };
 
-const showToast = (message, type = "") => {
+const showToast = (message, type = "", duration = 3200) => {
   toast.textContent = message;
   toast.className = `toast show ${type}`;
-  setTimeout(() => (toast.className = "toast"), 3200);
+  setTimeout(() => (toast.className = "toast"), duration);
 };
 
 const api = async (path, options = {}) => {
@@ -615,6 +622,10 @@ on("#loginForm", "submit", async (event) => {
     await loadDashboard();
     showToast("Login successful", "success");
   } catch (error) {
+    if (isApprovalPendingError(error.message)) {
+      showToast(approvalPendingMessage, "error", 6500);
+      return;
+    }
     showToast(error.message, "error");
   }
 });
@@ -651,7 +662,7 @@ on("#signupForm", "submit", async (event) => {
     showAuthMode("login");
     setSignupOtpMode(false);
     setSignupStep(1);
-    showToast(result.message || "Seller account submitted. Admin approval is required before login.", "success");
+    showToast(result.message || approvalPendingMessage, "success", 6500);
   } catch (error) {
     showToast(error.message, "error");
   } finally {
