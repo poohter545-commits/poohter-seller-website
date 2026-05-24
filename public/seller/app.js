@@ -219,12 +219,13 @@ const wholesalePaymentQrUrl = (amount = 0) => {
 const uploadUrl = (path) => {
   const raw = String(path || "").trim();
   if (!raw) return "";
-  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
-  if (raw.startsWith("//")) return `https:${raw}`;
+  if (/^(data:|blob:)/i.test(raw)) return raw;
+  if (/^https?:/i.test(raw)) return encodeURI(raw);
+  if (raw.startsWith("//")) return encodeURI(`https:${raw}`);
   let clean = raw.replace(/\\/g, "/").replace(/^\/+/, "");
   const uploadIndex = clean.lastIndexOf("uploads/");
   if (uploadIndex >= 0) clean = clean.slice(uploadIndex);
-  return `${ASSET_BASE}/${clean}`;
+  return encodeURI(`${ASSET_BASE}/${clean}`);
 };
 const escapeHtml = (value = "") =>
   String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -263,15 +264,23 @@ const toArrayValue = (value) => {
 };
 
 const mediaFilePath = (file) => (
-  typeof file === "string" ? file : file?.file_path || file?.path || file?.url || file?.image_url
+  typeof file === "string" ? file : file?.file_path || file?.path || file?.url || file?.image_url || file?.image || file?.thumbnail
 );
 
 const wholesaleProductImages = (product = {}) => {
-  const mediaFiles = toArrayValue(product.media_files);
-  return uniqueUploadUrls([
-    product.image_url,
+  const mediaFiles = [
     ...toArrayValue(product.product_images),
     ...toArrayValue(product.image_urls),
+    ...toArrayValue(product.images),
+    ...toArrayValue(product.gallery_images),
+    ...toArrayValue(product.media),
+    ...toArrayValue(product.product_media),
+    ...toArrayValue(product.media_files),
+  ];
+  return uniqueUploadUrls([
+    mediaFilePath(product.image_url),
+    mediaFilePath(product.image),
+    mediaFilePath(product.thumbnail),
     ...mediaFiles.map(mediaFilePath),
   ]).slice(0, 3);
 };
@@ -282,10 +291,23 @@ const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") 
   const fallback = `<span class="wholesale-image-fallback"${image ? " hidden" : ""}>No image</span>`;
   return `
     <div class="${className}">
-      ${image ? `<img src="${image}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
+      ${image ? `<img data-wholesale-img src="${image}" alt="${productName}" loading="lazy" />` : ""}
       ${fallback}
     </div>
   `;
+};
+
+const attachWholesaleImageFallbacks = (root) => {
+  if (!root) return;
+  root.querySelectorAll("[data-wholesale-img]").forEach((image) => {
+    const fallback = image.nextElementSibling;
+    const showFallback = () => {
+      image.hidden = true;
+      if (fallback) fallback.hidden = false;
+    };
+    image.addEventListener("error", showFallback, { once: true });
+    if (image.complete && image.naturalWidth === 0) showFallback();
+  });
 };
 
 const wholesaleGalleryHtml = (product) => {
@@ -298,7 +320,7 @@ const wholesaleGalleryHtml = (product) => {
     <div class="wholesale-gallery image-count-${images.length}">
       ${images.map((image, index) => `
         <figure class="wholesale-gallery-item ${index === 0 ? "is-main" : ""}">
-          <img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
+          <img data-wholesale-img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" />
           <span class="wholesale-image-fallback" hidden>No image</span>
         </figure>
       `).join("")}
@@ -313,6 +335,51 @@ const wholesaleCatalogCardHtml = (product) => {
     <button class="wholesale-product-tile" type="button" data-wholesale-product-id="${product.id}">
       ${wholesalePrimaryImageHtml(product)}
       <strong>${productName}</strong>
+    </button>
+  `;
+};
+
+const wholesaleSupplierKey = (product = {}) => String(
+  product.wholesaler_id ||
+  product.wholesaler_user_id ||
+  product.supplier_id ||
+  product.wholesaler_email ||
+  product.wholesaler_phone ||
+  product.wholesaler_shop ||
+  product.wholesaler_name ||
+  "unknown"
+).trim();
+
+const wholesaleSupplierList = (products = []) => [...products.reduce((map, product) => {
+  const id = wholesaleSupplierKey(product);
+  const current = map.get(id) || {
+    id,
+    shop: product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier",
+    city: product.wholesaler_city || "Wholesale city",
+    phone: product.wholesaler_phone || "",
+    products: [],
+  };
+  current.products.push(product);
+  map.set(id, current);
+  return map;
+}, new Map()).values()];
+
+const wholesalerCardHtml = (wholesaler) => {
+  const stock = wholesaler.products.reduce((sum, product) => sum + Number(product.available_stock || 0), 0);
+  const initials = escapeHtml(String(wholesaler.shop || "W").trim().slice(0, 1).toUpperCase() || "W");
+  const contact = [wholesaler.city, wholesaler.phone].filter(Boolean).join(" - ");
+  return `
+    <button class="wholesaler-card" type="button" data-wholesaler-id="${escapeHtml(wholesaler.id)}">
+      <span class="wholesaler-avatar">${initials}</span>
+      <div>
+        <span class="muted">Wholesaler</span>
+        <h3>${escapeHtml(wholesaler.shop)}</h3>
+        <p>${escapeHtml(contact || "Wholesale supplier")}</p>
+      </div>
+      <div class="wholesale-meta">
+        <span>${wholesaler.products.length} product${wholesaler.products.length === 1 ? "" : "s"}</span>
+        <span>${stock} units available</span>
+      </div>
     </button>
   `;
 };
@@ -611,34 +678,57 @@ const renderWholesale = () => {
   const orderWrap = $("#wholesaleOrdersList");
   if (!productWrap || !orderWrap) return;
 
-  const selectedProduct = products.find((product) => String(product.id) === String(state.selectedWholesaleProductId));
+  const wholesalers = wholesaleSupplierList(products);
+  const selectedWholesaler = wholesalers.find((wholesaler) => wholesaler.id === state.selectedWholesalerId);
+  if (state.selectedWholesalerId && !selectedWholesaler) {
+    state.selectedWholesalerId = "";
+    state.selectedWholesaleProductId = "";
+  }
+
+  const productScope = selectedWholesaler ? selectedWholesaler.products : [];
+  const selectedProduct = productScope.find((product) => String(product.id) === String(state.selectedWholesaleProductId));
   if (state.selectedWholesaleProductId && !selectedProduct) {
     state.selectedWholesaleProductId = "";
   }
 
   if (!products.length) {
     productWrap.innerHTML = `<div class="stock-ok">No wholesale products are available yet.</div>`;
+  } else if (!selectedWholesaler) {
+    productWrap.innerHTML = `
+      <div class="wholesale-directory">
+        ${wholesalers.map(wholesalerCardHtml).join("")}
+      </div>
+    `;
   } else if (!selectedProduct) {
     productWrap.innerHTML = `
+      <div class="wholesale-selected-head">
+        <div>
+          <span class="muted">Selected wholesaler</span>
+          <h3>${escapeHtml(selectedWholesaler.shop)}</h3>
+          <p>${escapeHtml([selectedWholesaler.city, selectedWholesaler.phone].filter(Boolean).join(" - ") || "Wholesale supplier")}</p>
+        </div>
+        <button class="outline-btn" type="button" data-wholesale-supplier-back>All wholesalers</button>
+      </div>
       <div class="wholesale-product-browser">
-        ${products.map(wholesaleCatalogCardHtml).join("")}
+        ${selectedWholesaler.products.map(wholesaleCatalogCardHtml).join("")}
       </div>
     `;
   } else {
     productWrap.innerHTML = `
       <div class="wholesale-selected-head">
         <div>
-          <span class="muted">Selected product</span>
+          <span class="muted">Product order</span>
           <h3>${escapeHtml(productDisplayName(selectedProduct))}</h3>
           <p>${escapeHtml(selectedProduct.wholesaler_shop || selectedProduct.wholesaler_name || "Wholesale supplier")}</p>
         </div>
-        <button class="outline-btn" type="button" data-wholesale-back>All products</button>
+        <button class="outline-btn" type="button" data-wholesale-product-back>Back to products</button>
       </div>
       <div class="wholesale-detail">
         ${wholesaleProductDetailHtml(selectedProduct)}
       </div>
     `;
   }
+  attachWholesaleImageFallbacks(productWrap);
 
   orderWrap.innerHTML = orders.length
     ? orders
@@ -937,13 +1027,25 @@ on("#wholesaleProducts", "submit", async (event) => {
   }
 });
 on("#wholesaleProducts", "click", (event) => {
+  const wholesalerButton = event.target.closest("[data-wholesaler-id]");
   const productButton = event.target.closest("[data-wholesale-product-id]");
-  const backButton = event.target.closest("[data-wholesale-back]");
+  const supplierBackButton = event.target.closest("[data-wholesale-supplier-back]");
+  const productBackButton = event.target.closest("[data-wholesale-product-back]");
+  if (wholesalerButton) {
+    state.selectedWholesalerId = wholesalerButton.dataset.wholesalerId;
+    state.selectedWholesaleProductId = "";
+    renderWholesale();
+  }
   if (productButton) {
     state.selectedWholesaleProductId = productButton.dataset.wholesaleProductId;
     renderWholesale();
   }
-  if (backButton) {
+  if (productBackButton) {
+    state.selectedWholesaleProductId = "";
+    renderWholesale();
+  }
+  if (supplierBackButton) {
+    state.selectedWholesalerId = "";
     state.selectedWholesaleProductId = "";
     renderWholesale();
   }
@@ -959,6 +1061,11 @@ document.querySelectorAll(".nav a").forEach((link) => {
   link.addEventListener("click", () => {
     document.querySelectorAll(".nav a").forEach((item) => item.classList.remove("active"));
     link.classList.add("active");
+    if (link.getAttribute("href") === "#wholesale") {
+      state.selectedWholesalerId = "";
+      state.selectedWholesaleProductId = "";
+      renderWholesale();
+    }
   });
 });
 

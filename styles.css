@@ -822,6 +822,9 @@ td strong {
   font-weight: 900;
   text-align: center;
 }
+.wholesale-image-fallback[hidden] {
+  display: none;
+}
 .wholesale-gallery .wholesale-image-fallback {
   min-height: 0;
   padding: 8px;
@@ -848,7 +851,30 @@ td strong {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   background: #fff;
+  color: var(--text-main);
+  cursor: pointer;
+  font: inherit;
   box-shadow: 0 14px 30px rgba(15, 23, 42, 0.08);
+  text-align: left;
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease;
+}
+.wholesaler-card:hover,
+.wholesaler-card:focus-visible {
+  transform: translateY(-2px);
+  border-color: #93c5fd;
+  box-shadow: 0 18px 38px rgba(15, 23, 42, 0.14);
+  outline: none;
+}
+.wholesaler-avatar {
+  display: grid;
+  width: 46px;
+  height: 46px;
+  place-items: center;
+  border-radius: 12px;
+  background: #eff6ff;
+  color: var(--primary-dark);
+  font-size: 18px;
+  font-weight: 900;
 }
 .wholesaler-card h3 {
   margin: 5px 0;
