@@ -18,6 +18,7 @@ const state = {
   wholesaleProducts: [],
   wholesaleOrders: [],
   selectedWholesalerId: "",
+  selectedWholesaleProductId: "",
   payouts: null,
   profile: null,
   signupStep: 1,
@@ -77,6 +78,7 @@ const clearSession = () => {
   state.wholesaleProducts = [];
   state.wholesaleOrders = [];
   state.selectedWholesalerId = "";
+  state.selectedWholesaleProductId = "";
   state.payouts = null;
   state.profile = null;
   localStorage.removeItem("poohterSellerToken");
@@ -215,9 +217,14 @@ const wholesalePaymentQrUrl = (amount = 0) => {
   return `https://api.qrserver.com/v1/create-qr-code/?size=132x132&margin=8&data=${encodeURIComponent(payload)}`;
 };
 const uploadUrl = (path) => {
-  if (!path) return "";
-  if (String(path).startsWith("http")) return path;
-  return `${ASSET_BASE}/${String(path).replace(/^uploads[\\/]/, "uploads/").replace(/\\/g, "/")}`;
+  const raw = String(path || "").trim();
+  if (!raw) return "";
+  if (/^(https?:|data:|blob:)/i.test(raw)) return raw;
+  if (raw.startsWith("//")) return `https:${raw}`;
+  let clean = raw.replace(/\\/g, "/").replace(/^\/+/, "");
+  const uploadIndex = clean.lastIndexOf("uploads/");
+  if (uploadIndex >= 0) clean = clean.slice(uploadIndex);
+  return `${ASSET_BASE}/${clean}`;
 };
 const escapeHtml = (value = "") =>
   String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -239,14 +246,46 @@ const uniqueUploadUrls = (paths = []) => {
     });
 };
 
+const toArrayValue = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value !== "string") return value ? [value] : [];
+  const trimmed = value.trim();
+  if (!trimmed) return [];
+  if (trimmed.startsWith("[") || trimmed.startsWith("{")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch {
+      return [trimmed];
+    }
+  }
+  return [trimmed];
+};
+
+const mediaFilePath = (file) => (
+  typeof file === "string" ? file : file?.file_path || file?.path || file?.url || file?.image_url
+);
+
 const wholesaleProductImages = (product = {}) => {
-  const mediaFiles = Array.isArray(product.media_files) ? product.media_files : [];
+  const mediaFiles = toArrayValue(product.media_files);
   return uniqueUploadUrls([
     product.image_url,
-    ...(Array.isArray(product.product_images) ? product.product_images : []),
-    ...(Array.isArray(product.image_urls) ? product.image_urls : []),
-    ...mediaFiles.map((file) => (typeof file === "string" ? file : file?.file_path || file?.path || file?.url)),
+    ...toArrayValue(product.product_images),
+    ...toArrayValue(product.image_urls),
+    ...mediaFiles.map(mediaFilePath),
   ]).slice(0, 3);
+};
+
+const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") => {
+  const image = wholesaleProductImages(product)[0];
+  const productName = escapeHtml(productDisplayName(product));
+  const fallback = `<span class="wholesale-image-fallback"${image ? " hidden" : ""}>No image</span>`;
+  return `
+    <div class="${className}">
+      ${image ? `<img src="${image}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
+      ${fallback}
+    </div>
+  `;
 };
 
 const wholesaleGalleryHtml = (product) => {
@@ -259,7 +298,8 @@ const wholesaleGalleryHtml = (product) => {
     <div class="wholesale-gallery image-count-${images.length}">
       ${images.map((image, index) => `
         <figure class="wholesale-gallery-item ${index === 0 ? "is-main" : ""}">
-          <img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" />
+          <img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
+          <span class="wholesale-image-fallback" hidden>No image</span>
         </figure>
       `).join("")}
       <span class="wholesale-gallery-count">${images.length} image${images.length === 1 ? "" : "s"}</span>
@@ -267,7 +307,17 @@ const wholesaleGalleryHtml = (product) => {
   `;
 };
 
-const wholesaleProductCardHtml = (product, options = {}) => {
+const wholesaleCatalogCardHtml = (product) => {
+  const productName = escapeHtml(productDisplayName(product));
+  return `
+    <button class="wholesale-product-tile" type="button" data-wholesale-product-id="${product.id}">
+      ${wholesalePrimaryImageHtml(product)}
+      <strong>${productName}</strong>
+    </button>
+  `;
+};
+
+const wholesaleProductDetailHtml = (product) => {
   const minOrder = Math.max(1, Number(product.min_order_quantity || 1));
   const initialTotal = Number(product.wholesale_price || 0) * minOrder;
   const availableStock = Number(product.available_stock || 0);
@@ -277,7 +327,6 @@ const wholesaleProductCardHtml = (product, options = {}) => {
   const description = escapeHtml(product.description || "Wholesale supply ready for seller investment.");
   const productUid = escapeHtml(product.product_uid || `Wholesale #${product.id}`);
   const supplierName = escapeHtml(product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier");
-  const supplierLine = options.showSupplier ? `<span class="wholesale-supplier-line">${supplierName}</span>` : "";
 
   return `
     <article class="wholesale-card">
@@ -289,7 +338,7 @@ const wholesaleProductCardHtml = (product, options = {}) => {
         </div>
         <div class="wholesale-copy">
           <h3>${productName}</h3>
-          ${supplierLine}
+          <span class="wholesale-supplier-line">${supplierName}</span>
           <p>${description}</p>
         </div>
         <div class="wholesale-meta">
@@ -562,73 +611,31 @@ const renderWholesale = () => {
   const orderWrap = $("#wholesaleOrdersList");
   if (!productWrap || !orderWrap) return;
 
-  const wholesalers = [...products.reduce((map, product) => {
-    const id = String(product.wholesaler_id || "");
-    if (!id) return map;
-    const current = map.get(id) || {
-      id,
-      shop: product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier",
-      city: product.wholesaler_city || "Wholesale city",
-      phone: product.wholesaler_phone || "",
-      products: [],
-    };
-    current.products.push(product);
-    map.set(id, current);
-    return map;
-  }, new Map()).values()];
-
-  if (state.selectedWholesalerId && !wholesalers.some((wholesaler) => wholesaler.id === state.selectedWholesalerId)) {
-    state.selectedWholesalerId = "";
+  const selectedProduct = products.find((product) => String(product.id) === String(state.selectedWholesaleProductId));
+  if (state.selectedWholesaleProductId && !selectedProduct) {
+    state.selectedWholesaleProductId = "";
   }
-
-  const selectedWholesaler = wholesalers.find((wholesaler) => wholesaler.id === state.selectedWholesalerId);
 
   if (!products.length) {
     productWrap.innerHTML = `<div class="stock-ok">No wholesale products are available yet.</div>`;
-  } else if (!selectedWholesaler) {
+  } else if (!selectedProduct) {
     productWrap.innerHTML = `
-      <div class="wholesale-directory">
-        ${wholesalers.map((wholesaler) => {
-          const stock = wholesaler.products.reduce((sum, product) => sum + Number(product.available_stock || 0), 0);
-          return `
-            <article class="wholesaler-card">
-              <div>
-                <span class="muted">Wholesaler</span>
-                <h3>${wholesaler.shop}</h3>
-                <p>${wholesaler.city}${wholesaler.phone ? ` - ${wholesaler.phone}` : ""}</p>
-              </div>
-              <div class="wholesale-meta">
-                <span>${wholesaler.products.length} products</span>
-                <span>${stock} units available</span>
-              </div>
-              <button class="mini-btn" type="button" data-wholesaler-id="${wholesaler.id}">View products</button>
-            </article>
-          `;
-        }).join("")}
-      </div>
-      <div class="wholesale-market-head">
-        <div>
-          <span class="muted">All wholesale products</span>
-          <h3>Ready supply products</h3>
-        </div>
-        <span>${products.length} live product${products.length === 1 ? "" : "s"}</span>
-      </div>
-      <div class="wholesale-product-list">
-        ${products.map((product) => wholesaleProductCardHtml(product, { showSupplier: true })).join("")}
+      <div class="wholesale-product-browser">
+        ${products.map(wholesaleCatalogCardHtml).join("")}
       </div>
     `;
   } else {
     productWrap.innerHTML = `
       <div class="wholesale-selected-head">
         <div>
-          <span class="muted">Selected wholesaler</span>
-          <h3>${selectedWholesaler.shop}</h3>
-          <p>${selectedWholesaler.city}${selectedWholesaler.phone ? ` - ${selectedWholesaler.phone}` : ""}</p>
+          <span class="muted">Selected product</span>
+          <h3>${escapeHtml(productDisplayName(selectedProduct))}</h3>
+          <p>${escapeHtml(selectedProduct.wholesaler_shop || selectedProduct.wholesaler_name || "Wholesale supplier")}</p>
         </div>
-        <button class="outline-btn" type="button" data-wholesale-back>All wholesalers</button>
+        <button class="outline-btn" type="button" data-wholesale-back>All products</button>
       </div>
-      <div class="wholesale-product-list">
-        ${selectedWholesaler.products.map((product) => wholesaleProductCardHtml(product)).join("")}
+      <div class="wholesale-detail">
+        ${wholesaleProductDetailHtml(selectedProduct)}
       </div>
     `;
   }
@@ -930,14 +937,14 @@ on("#wholesaleProducts", "submit", async (event) => {
   }
 });
 on("#wholesaleProducts", "click", (event) => {
-  const wholesalerButton = event.target.closest("[data-wholesaler-id]");
+  const productButton = event.target.closest("[data-wholesale-product-id]");
   const backButton = event.target.closest("[data-wholesale-back]");
-  if (wholesalerButton) {
-    state.selectedWholesalerId = wholesalerButton.dataset.wholesalerId;
+  if (productButton) {
+    state.selectedWholesaleProductId = productButton.dataset.wholesaleProductId;
     renderWholesale();
   }
   if (backButton) {
-    state.selectedWholesalerId = "";
+    state.selectedWholesaleProductId = "";
     renderWholesale();
   }
 });
