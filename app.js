@@ -200,10 +200,71 @@ const validateSignupStep = () => {
 };
 
 const money = (value) => `Rs ${Math.round(Number(value || 0)).toLocaleString()}`;
+const WHOLESALE_PAYMENT = {
+  method: "Easypaisa",
+  accountNumber: "03428787873",
+  accountHolder: "Muhammad Saleeem",
+};
+const wholesalePaymentQrUrl = (amount = 0) => {
+  const payload = [
+    "Poohter wholesale payment",
+    `${WHOLESALE_PAYMENT.method}: ${WHOLESALE_PAYMENT.accountNumber}`,
+    `Account holder: ${WHOLESALE_PAYMENT.accountHolder}`,
+    `Amount: ${money(amount)}`,
+  ].join("\n");
+  return `https://api.qrserver.com/v1/create-qr-code/?size=132x132&margin=8&data=${encodeURIComponent(payload)}`;
+};
 const uploadUrl = (path) => {
   if (!path) return "";
   if (String(path).startsWith("http")) return path;
   return `${ASSET_BASE}/${String(path).replace(/^uploads[\\/]/, "uploads/").replace(/\\/g, "/")}`;
+};
+const escapeHtml = (value = "") =>
+  String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;",
+  })[char]);
+
+const uniqueUploadUrls = (paths = []) => {
+  const seen = new Set();
+  return paths
+    .map(uploadUrl)
+    .filter((url) => {
+      if (!url || seen.has(url)) return false;
+      seen.add(url);
+      return true;
+    });
+};
+
+const wholesaleProductImages = (product = {}) => {
+  const mediaFiles = Array.isArray(product.media_files) ? product.media_files : [];
+  return uniqueUploadUrls([
+    product.image_url,
+    ...(Array.isArray(product.product_images) ? product.product_images : []),
+    ...(Array.isArray(product.image_urls) ? product.image_urls : []),
+    ...mediaFiles.map((file) => (typeof file === "string" ? file : file?.file_path || file?.path || file?.url)),
+  ]).slice(0, 3);
+};
+
+const wholesaleGalleryHtml = (product) => {
+  const images = wholesaleProductImages(product);
+  if (!images.length) {
+    return `<div class="wholesale-gallery empty"><span>W</span></div>`;
+  }
+  const productName = escapeHtml(productDisplayName(product));
+  return `
+    <div class="wholesale-gallery image-count-${images.length}">
+      ${images.map((image, index) => `
+        <figure class="wholesale-gallery-item ${index === 0 ? "is-main" : ""}">
+          <img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" />
+        </figure>
+      `).join("")}
+      <span class="wholesale-gallery-count">${images.length} image${images.length === 1 ? "" : "s"}</span>
+    </div>
+  `;
 };
 
 const productDisplayName = (product) => {
@@ -504,26 +565,49 @@ const renderWholesale = () => {
       </div>
       <div class="wholesale-product-list">
         ${selectedWholesaler.products.map((product) => {
-          const minOrder = Math.max(25, Number(product.min_order_quantity || 25));
-          const image = uploadUrl(product.image_url);
+          const minOrder = Math.max(1, Number(product.min_order_quantity || 1));
+          const initialTotal = Number(product.wholesale_price || 0) * minOrder;
+          const availableStock = Number(product.available_stock || 0);
+          const gallery = wholesaleGalleryHtml(product);
+          const imageCount = wholesaleProductImages(product).length;
+          const productName = escapeHtml(productDisplayName(product));
+          const description = escapeHtml(product.description || "Wholesale supply ready for seller investment.");
+          const productUid = escapeHtml(product.product_uid || `Wholesale #${product.id}`);
           return `
             <article class="wholesale-card">
-              <div class="wholesale-image">${image ? `<img src="${image}" alt="${product.name}" />` : `<span>W</span>`}</div>
+              ${gallery}
               <div class="wholesale-body">
-                <div>
-                  <span class="muted">${product.product_uid || `Wholesale #${product.id}`}</span>
-                  <h3>${product.name}</h3>
-                  <p>${product.description || "Wholesale supply ready for seller investment."}</p>
+                <div class="wholesale-title-row">
+                  <span class="wholesale-sku">${productUid}</span>
+                  <span class="wholesale-price-pill">${money(product.wholesale_price)} / unit</span>
+                </div>
+                <div class="wholesale-copy">
+                  <h3>${productName}</h3>
+                  <p>${description}</p>
                 </div>
                 <div class="wholesale-meta">
-                  <strong>${money(product.wholesale_price)}</strong>
                   <span>Min ${minOrder} units</span>
-                  <span>${product.available_stock} available</span>
+                  <span>${availableStock} available</span>
+                  <span>${imageCount} product image${imageCount === 1 ? "" : "s"}</span>
                 </div>
                 <form class="wholesale-order-form" data-wholesale-order="${product.id}">
-                  <input name="quantity" type="number" min="${minOrder}" max="${product.available_stock}" value="${minOrder}" required />
-                  <input name="note" placeholder="Optional note for admin" />
-                  <button class="mini-btn" type="submit">Request</button>
+                  <div class="wholesale-total-preview">
+                    <span>Total amount before request</span>
+                    <strong data-wholesale-total>${money(initialTotal)}</strong>
+                  </div>
+                  <div class="wholesale-payment-box">
+                    <img data-wholesale-qr src="${wholesalePaymentQrUrl(initialTotal)}" alt="Easypaisa payment QR for ${WHOLESALE_PAYMENT.accountNumber}" />
+                    <div>
+                      <span>Pay with ${WHOLESALE_PAYMENT.method}</span>
+                      <strong>${WHOLESALE_PAYMENT.accountNumber}</strong>
+                      <small>Account holder: ${WHOLESALE_PAYMENT.accountHolder}</small>
+                    </div>
+                  </div>
+                  <div class="wholesale-field-group">
+                    <label><span>Qty</span><input name="quantity" type="number" min="${minOrder}" max="${availableStock}" value="${minOrder}" data-unit-price="${Number(product.wholesale_price || 0)}" required /></label>
+                    <label><span>Note</span><input name="note" placeholder="Optional note for admin" /></label>
+                    <button class="mini-btn" type="submit">Request supply</button>
+                  </div>
                 </form>
               </div>
             </article>
@@ -788,18 +872,38 @@ on("#productsList", "click", (event) => {
   if (!button) return;
   downloadReceipt(button.dataset.receipt);
 });
+on("#wholesaleProducts", "input", (event) => {
+  const quantityInput = event.target.closest("[name='quantity'][data-unit-price]");
+  if (!quantityInput) return;
+  const form = quantityInput.closest("[data-wholesale-order]");
+  const quantity = Number(quantityInput.value || 0);
+  const unitPrice = Number(quantityInput.dataset.unitPrice || 0);
+  const total = Math.max(0, quantity) * unitPrice;
+  const totalTarget = form?.querySelector("[data-wholesale-total]");
+  const qrTarget = form?.querySelector("[data-wholesale-qr]");
+  if (totalTarget) totalTarget.textContent = money(total);
+  if (qrTarget) qrTarget.src = wholesalePaymentQrUrl(total);
+});
 on("#wholesaleProducts", "submit", async (event) => {
   const form = event.target.closest("[data-wholesale-order]");
   if (!form) return;
   event.preventDefault();
+  const formData = new FormData(form);
+  const quantity = Number(formData.get("quantity"));
+  const unitPrice = Number(form.querySelector("[name='quantity']")?.dataset.unitPrice || 0);
+  const total = quantity * unitPrice;
+  const confirmed = window.confirm(
+    `Wholesale request total: ${money(total)}\n\nPay ${WHOLESALE_PAYMENT.method} ${WHOLESALE_PAYMENT.accountNumber}\nAccount holder: ${WHOLESALE_PAYMENT.accountHolder}\n\nSend this request now?`
+  );
+  if (!confirmed) return;
   try {
     await api("/seller/wholesale/orders", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         product_id: form.dataset.wholesaleOrder,
-        quantity: Number(new FormData(form).get("quantity")),
-        note: new FormData(form).get("note"),
+        quantity,
+        note: formData.get("note"),
       }),
     });
     form.reset();
