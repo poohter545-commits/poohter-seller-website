@@ -267,6 +267,60 @@ const wholesaleGalleryHtml = (product) => {
   `;
 };
 
+const wholesaleProductCardHtml = (product, options = {}) => {
+  const minOrder = Math.max(1, Number(product.min_order_quantity || 1));
+  const initialTotal = Number(product.wholesale_price || 0) * minOrder;
+  const availableStock = Number(product.available_stock || 0);
+  const gallery = wholesaleGalleryHtml(product);
+  const imageCount = wholesaleProductImages(product).length;
+  const productName = escapeHtml(productDisplayName(product));
+  const description = escapeHtml(product.description || "Wholesale supply ready for seller investment.");
+  const productUid = escapeHtml(product.product_uid || `Wholesale #${product.id}`);
+  const supplierName = escapeHtml(product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier");
+  const supplierLine = options.showSupplier ? `<span class="wholesale-supplier-line">${supplierName}</span>` : "";
+
+  return `
+    <article class="wholesale-card">
+      ${gallery}
+      <div class="wholesale-body">
+        <div class="wholesale-title-row">
+          <span class="wholesale-sku">${productUid}</span>
+          <span class="wholesale-price-pill">${money(product.wholesale_price)} / unit</span>
+        </div>
+        <div class="wholesale-copy">
+          <h3>${productName}</h3>
+          ${supplierLine}
+          <p>${description}</p>
+        </div>
+        <div class="wholesale-meta">
+          <span>Min ${minOrder} units</span>
+          <span>${availableStock} available</span>
+          <span>${imageCount} product image${imageCount === 1 ? "" : "s"}</span>
+        </div>
+        <form class="wholesale-order-form" data-wholesale-order="${product.id}">
+          <div class="wholesale-total-preview">
+            <span>Total amount before request</span>
+            <strong data-wholesale-total>${money(initialTotal)}</strong>
+          </div>
+          <div class="wholesale-payment-box">
+            <img data-wholesale-qr src="${wholesalePaymentQrUrl(initialTotal)}" alt="Easypaisa payment QR for ${WHOLESALE_PAYMENT.accountNumber}" />
+            <div>
+              <span>Pay with ${WHOLESALE_PAYMENT.method}</span>
+              <strong>${WHOLESALE_PAYMENT.accountNumber}</strong>
+              <small>Account holder: ${WHOLESALE_PAYMENT.accountHolder}</small>
+            </div>
+          </div>
+          <div class="wholesale-field-group">
+            <label><span>Qty</span><input name="quantity" type="number" min="${minOrder}" max="${availableStock}" value="${minOrder}" data-unit-price="${Number(product.wholesale_price || 0)}" required /></label>
+            <label><span>Note</span><input name="note" placeholder="Optional note for admin" /></label>
+            <button class="mini-btn" type="submit">Request supply</button>
+          </div>
+        </form>
+      </div>
+    </article>
+  `;
+};
+
 const productDisplayName = (product) => {
   const name = product.name || "Untitled product";
   const urduName = product.name_urdu ? ` (${product.name_urdu})` : "";
@@ -552,6 +606,16 @@ const renderWholesale = () => {
           `;
         }).join("")}
       </div>
+      <div class="wholesale-market-head">
+        <div>
+          <span class="muted">All wholesale products</span>
+          <h3>Ready supply products</h3>
+        </div>
+        <span>${products.length} live product${products.length === 1 ? "" : "s"}</span>
+      </div>
+      <div class="wholesale-product-list">
+        ${products.map((product) => wholesaleProductCardHtml(product, { showSupplier: true })).join("")}
+      </div>
     `;
   } else {
     productWrap.innerHTML = `
@@ -564,55 +628,7 @@ const renderWholesale = () => {
         <button class="outline-btn" type="button" data-wholesale-back>All wholesalers</button>
       </div>
       <div class="wholesale-product-list">
-        ${selectedWholesaler.products.map((product) => {
-          const minOrder = Math.max(1, Number(product.min_order_quantity || 1));
-          const initialTotal = Number(product.wholesale_price || 0) * minOrder;
-          const availableStock = Number(product.available_stock || 0);
-          const gallery = wholesaleGalleryHtml(product);
-          const imageCount = wholesaleProductImages(product).length;
-          const productName = escapeHtml(productDisplayName(product));
-          const description = escapeHtml(product.description || "Wholesale supply ready for seller investment.");
-          const productUid = escapeHtml(product.product_uid || `Wholesale #${product.id}`);
-          return `
-            <article class="wholesale-card">
-              ${gallery}
-              <div class="wholesale-body">
-                <div class="wholesale-title-row">
-                  <span class="wholesale-sku">${productUid}</span>
-                  <span class="wholesale-price-pill">${money(product.wholesale_price)} / unit</span>
-                </div>
-                <div class="wholesale-copy">
-                  <h3>${productName}</h3>
-                  <p>${description}</p>
-                </div>
-                <div class="wholesale-meta">
-                  <span>Min ${minOrder} units</span>
-                  <span>${availableStock} available</span>
-                  <span>${imageCount} product image${imageCount === 1 ? "" : "s"}</span>
-                </div>
-                <form class="wholesale-order-form" data-wholesale-order="${product.id}">
-                  <div class="wholesale-total-preview">
-                    <span>Total amount before request</span>
-                    <strong data-wholesale-total>${money(initialTotal)}</strong>
-                  </div>
-                  <div class="wholesale-payment-box">
-                    <img data-wholesale-qr src="${wholesalePaymentQrUrl(initialTotal)}" alt="Easypaisa payment QR for ${WHOLESALE_PAYMENT.accountNumber}" />
-                    <div>
-                      <span>Pay with ${WHOLESALE_PAYMENT.method}</span>
-                      <strong>${WHOLESALE_PAYMENT.accountNumber}</strong>
-                      <small>Account holder: ${WHOLESALE_PAYMENT.accountHolder}</small>
-                    </div>
-                  </div>
-                  <div class="wholesale-field-group">
-                    <label><span>Qty</span><input name="quantity" type="number" min="${minOrder}" max="${availableStock}" value="${minOrder}" data-unit-price="${Number(product.wholesale_price || 0)}" required /></label>
-                    <label><span>Note</span><input name="note" placeholder="Optional note for admin" /></label>
-                    <button class="mini-btn" type="submit">Request supply</button>
-                  </div>
-                </form>
-              </div>
-            </article>
-          `;
-        }).join("")}
+        ${selectedWholesaler.products.map((product) => wholesaleProductCardHtml(product)).join("")}
       </div>
     `;
   }

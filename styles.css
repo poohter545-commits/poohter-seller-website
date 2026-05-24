@@ -756,6 +756,9 @@ td strong {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 14px;
 }
+.wholesale-directory {
+  margin-bottom: 16px;
+}
 .wholesaler-card {
   display: grid;
   gap: 16px;
@@ -799,6 +802,31 @@ td strong {
   margin: 0;
   color: var(--text-muted);
   font-weight: 700;
+}
+.wholesale-market-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin: 6px 0 14px;
+  padding: 14px 16px;
+  border: 1px solid #bfdbfe;
+  border-radius: var(--radius);
+  background: #eff6ff;
+}
+.wholesale-market-head h3 {
+  margin: 3px 0 0;
+  font-size: 19px;
+  line-height: 1.2;
+}
+.wholesale-market-head > span {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 900;
 }
 .wholesale-card {
   display: grid;
@@ -918,6 +946,13 @@ td strong {
   margin: 0 0 6px;
   font-size: 18px;
   line-height: 1.2;
+}
+.wholesale-supplier-line {
+  display: block;
+  margin: -2px 0 6px;
+  color: var(--primary-dark);
+  font-size: 12px;
+  font-weight: 900;
 }
 .wholesale-copy p {
   display: -webkit-box;
@@ -1309,6 +1344,10 @@ td strong {
     grid-template-columns: 1fr;
   }
   .wholesale-selected-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .wholesale-market-head {
     align-items: stretch;
     flex-direction: column;
   }
