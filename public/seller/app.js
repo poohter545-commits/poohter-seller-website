@@ -1,5 +1,4 @@
 const API_BASE = "https://api.poohter.com/api";
-const ASSET_BASE = API_BASE.replace("/api", "");
 
 const readJsonStorage = (key, fallback = null) => {
   try {
@@ -216,10 +215,17 @@ const wholesalePaymentQrUrl = (amount = 0) => {
   ].join("\n");
   return `https://api.qrserver.com/v1/create-qr-code/?size=132x132&margin=8&data=${encodeURIComponent(payload)}`;
 };
-const uploadUrl = (path) => {
+const getAssetUrl = (path) => {
+  if (!path) return "";
+  if (/^https?:/i.test(path)) return path;
+  const assetBase = API_BASE.replace(/\/api$/, "");
+  return `${assetBase}/${path.replace(/^uploads[\\/]/, "uploads/").replace(/\\/g, "/").replace(/^\/+/, "")}`;
+};
+
+function getImageUrl(path) {
+  const original = path;
   const raw = String(path || "").trim();
   if (!raw) return "";
-  if (/^(data:|blob:)/i.test(raw)) return raw;
   const legacyUploadPattern = /^(products|sellers|wholesalers|wholesale)\//;
   const cleanEncodeUri = (value) => {
     try {
@@ -228,28 +234,48 @@ const uploadUrl = (path) => {
       return encodeURI(value);
     }
   };
-  const assetUrl = (value) => {
+  const finish = (value) => {
+    const finalUrl = cleanEncodeUri(value);
+    console.log("[Image URL] original image value:", original);
+    console.log("[Image URL] final generated image URL:", finalUrl);
+    return finalUrl;
+  };
+  const uploadPathFromValue = (value) => {
     let clean = String(value || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    clean = clean
+      .replace(/^\.poohter\.com\/api\/+/i, "")
+      .replace(/^(?:seller\.)?poohter\.com\/api\/+/i, "")
+      .replace(/^api\.poohter\.com\/api\/+/i, "")
+      .replace(/^api\.poohter\.com\/+/i, "")
+      .replace(/^seller\.poohter\.com\/+/i, "")
+      .replace(/^api\/+/i, "");
     const uploadIndex = clean.lastIndexOf("uploads/");
     if (uploadIndex >= 0) clean = clean.slice(uploadIndex);
     if (legacyUploadPattern.test(clean)) clean = `uploads/${clean}`;
-    return cleanEncodeUri(`${ASSET_BASE}/${clean}`);
+    if (clean && !clean.startsWith("uploads/")) clean = `uploads/${clean}`;
+    return clean;
   };
-  if (raw.startsWith("//")) return uploadUrl(`https:${raw}`);
+  const cleanAssetUrl = (value) => {
+    const clean = uploadPathFromValue(value);
+    if (!clean) return finish("");
+    return finish(getAssetUrl(clean));
+  };
+
+  if (/^(data:|blob:)/i.test(raw)) return finish(raw);
+  if (raw.startsWith("//")) return getImageUrl(`https:${raw}`);
   if (/^https?:/i.test(raw)) {
     try {
       const url = new URL(raw);
-      const cleanPath = url.pathname.replace(/^\/+/, "");
-      if (url.hostname.endsWith("poohter.com") && (cleanPath.includes("uploads/") || legacyUploadPattern.test(cleanPath))) {
-        return assetUrl(cleanPath);
+      if (url.hostname.endsWith("poohter.com")) {
+        return cleanAssetUrl(url.pathname);
       }
     } catch {
-      return cleanEncodeUri(raw);
+      return finish(raw);
     }
-    return cleanEncodeUri(raw);
+    return finish(getAssetUrl(raw));
   }
-  return assetUrl(raw);
-};
+  return cleanAssetUrl(raw);
+}
 const escapeHtml = (value = "") =>
   String(value ?? "").replace(/[&<>"']/g, (char) => ({
     "&": "&amp;",
@@ -262,7 +288,7 @@ const escapeHtml = (value = "") =>
 const uniqueUploadUrls = (paths = []) => {
   const seen = new Set();
   return paths
-    .map(uploadUrl)
+    .map(getImageUrl)
     .filter((url) => {
       if (!url || seen.has(url)) return false;
       seen.add(url);
