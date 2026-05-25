@@ -220,12 +220,35 @@ const uploadUrl = (path) => {
   const raw = String(path || "").trim();
   if (!raw) return "";
   if (/^(data:|blob:)/i.test(raw)) return raw;
-  if (/^https?:/i.test(raw)) return encodeURI(raw);
-  if (raw.startsWith("//")) return encodeURI(`https:${raw}`);
-  let clean = raw.replace(/\\/g, "/").replace(/^\/+/, "");
-  const uploadIndex = clean.lastIndexOf("uploads/");
-  if (uploadIndex >= 0) clean = clean.slice(uploadIndex);
-  return encodeURI(`${ASSET_BASE}/${clean}`);
+  const legacyUploadPattern = /^(products|sellers|wholesalers|wholesale)\//;
+  const cleanEncodeUri = (value) => {
+    try {
+      return encodeURI(decodeURI(value));
+    } catch {
+      return encodeURI(value);
+    }
+  };
+  const assetUrl = (value) => {
+    let clean = String(value || "").replace(/\\/g, "/").replace(/^\/+/, "");
+    const uploadIndex = clean.lastIndexOf("uploads/");
+    if (uploadIndex >= 0) clean = clean.slice(uploadIndex);
+    if (legacyUploadPattern.test(clean)) clean = `uploads/${clean}`;
+    return cleanEncodeUri(`${ASSET_BASE}/${clean}`);
+  };
+  if (raw.startsWith("//")) return uploadUrl(`https:${raw}`);
+  if (/^https?:/i.test(raw)) {
+    try {
+      const url = new URL(raw);
+      const cleanPath = url.pathname.replace(/^\/+/, "");
+      if (url.hostname.endsWith("poohter.com") && (cleanPath.includes("uploads/") || legacyUploadPattern.test(cleanPath))) {
+        return assetUrl(cleanPath);
+      }
+    } catch {
+      return cleanEncodeUri(raw);
+    }
+    return cleanEncodeUri(raw);
+  }
+  return assetUrl(raw);
 };
 const escapeHtml = (value = "") =>
   String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -294,7 +317,7 @@ const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") 
   const fallback = `<span class="wholesale-image-fallback"${image ? " hidden" : ""}>No image</span>`;
   return `
     <div class="${className}">
-      ${image ? `<img data-wholesale-img src="${image}" alt="${productName}" loading="lazy" />` : ""}
+      ${image ? `<img data-wholesale-img src="${image}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
       ${fallback}
     </div>
   `;
@@ -336,7 +359,7 @@ const wholesaleGalleryHtml = (product) => {
     <div class="wholesale-gallery image-count-${images.length}">
       ${images.map((image, index) => `
         <figure class="wholesale-gallery-item ${index === 0 ? "is-main" : ""}">
-          <img data-wholesale-img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" />
+          <img data-wholesale-img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
           <span class="wholesale-image-fallback" hidden>No image</span>
         </figure>
       `).join("")}
