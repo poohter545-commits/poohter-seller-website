@@ -267,7 +267,7 @@ const mediaFilePath = (file) => (
   typeof file === "string" ? file : file?.file_path || file?.path || file?.url || file?.image_url || file?.image || file?.thumbnail
 );
 
-const wholesaleProductImages = (product = {}) => {
+const productImageUrls = (product = {}, limit = 3) => {
   const mediaFiles = [
     ...toArrayValue(product.product_images),
     ...toArrayValue(product.image_urls),
@@ -282,8 +282,11 @@ const wholesaleProductImages = (product = {}) => {
     mediaFilePath(product.image),
     mediaFilePath(product.thumbnail),
     ...mediaFiles.map(mediaFilePath),
-  ]).slice(0, 3);
+  ]).slice(0, limit);
 };
+
+const wholesaleProductImages = (product = {}) => productImageUrls(product, 3);
+const sellerProductImages = (product = {}) => productImageUrls(product, 5);
 
 const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") => {
   const image = wholesaleProductImages(product)[0];
@@ -300,6 +303,19 @@ const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") 
 const attachWholesaleImageFallbacks = (root) => {
   if (!root) return;
   root.querySelectorAll("[data-wholesale-img]").forEach((image) => {
+    const fallback = image.nextElementSibling;
+    const showFallback = () => {
+      image.hidden = true;
+      if (fallback) fallback.hidden = false;
+    };
+    image.addEventListener("error", showFallback, { once: true });
+    if (image.complete && image.naturalWidth === 0) showFallback();
+  });
+};
+
+const attachProductImageFallbacks = (root) => {
+  if (!root) return;
+  root.querySelectorAll("[data-product-img]").forEach((image) => {
     const fallback = image.nextElementSibling;
     const showFallback = () => {
       image.hidden = true;
@@ -441,6 +457,18 @@ const productDisplayName = (product) => {
   const name = product.name || "Untitled product";
   const urduName = product.name_urdu ? ` (${product.name_urdu})` : "";
   return `${name}${urduName}`;
+};
+
+const productThumbHtml = (product) => {
+  const image = sellerProductImages(product)[0];
+  const productName = escapeHtml(productDisplayName(product));
+  const fallbackText = escapeHtml(String(product.name || "P").trim().slice(0, 1).toUpperCase() || "P");
+  return `
+    <span class="product-thumb">
+      ${image ? `<img data-product-img src="${image}" alt="${productName}" loading="lazy" />` : ""}
+      <span class="product-thumb-fallback"${image ? " hidden" : ""}>${fallbackText}</span>
+    </span>
+  `;
 };
 
 const productStatusLabel = (status) => {
@@ -616,20 +644,37 @@ const renderProducts = () => {
     : state.products;
   $("#productsList").innerHTML = products.length
     ? products
-        .map((product) => `
+        .map((product) => {
+          const imageCount = Number(product.image_count ?? sellerProductImages(product).length ?? 0);
+          const videoCount = Number(product.video_count || 0);
+          const mediaDetails = [
+            imageCount ? `${imageCount} image${imageCount === 1 ? "" : "s"}` : "No images",
+            videoCount ? `${videoCount} video${videoCount === 1 ? "" : "s"}` : "",
+          ].filter(Boolean).join(" - ");
+          return `
           <tr>
-            <td><strong>${productDisplayName(product)}</strong></td>
+            <td>
+              <div class="product-cell">
+                ${productThumbHtml(product)}
+                <strong>${escapeHtml(productDisplayName(product))}</strong>
+              </div>
+            </td>
             <td><strong>${money(product.price)}</strong></td>
             <td><strong>${product.expected_stock ?? product.stock_quantity ?? 0}</strong></td>
             <td><span class="badge ${product.status || "pending"}">${productStatusLabel(product.status)}</span></td>
-            <td>${product.admin_media_required ? '<span class="media-chip">Admin media</span>' : '<span class="muted">Seller provided</span>'}</td>
+            <td>
+              <span class="media-chip">${product.admin_media_required ? "Admin media" : "Seller provided"}</span>
+              <span class="muted">${mediaDetails}</span>
+            </td>
             <td>
               ${product.product_uid ? `<button class="mini-btn" data-receipt="${product.id}">Download</button><span class="muted">${product.product_uid}</span>` : '<span class="muted">After approval</span>'}
             </td>
           </tr>
-        `)
+        `;
+        })
         .join("")
     : `<tr class="empty-row"><td colspan="6">No products found. Add your first listing below.</td></tr>`;
+  attachProductImageFallbacks($("#productsList"));
 };
 
 const renderPayouts = () => {

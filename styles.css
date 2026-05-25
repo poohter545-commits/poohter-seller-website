@@ -666,6 +666,43 @@ tbody tr:hover { background: #fbfbfb; }
 td strong {
   color: #111827;
 }
+.product-cell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 240px;
+}
+.product-thumb {
+  position: relative;
+  display: grid;
+  flex: 0 0 58px;
+  width: 58px;
+  height: 58px;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #ffffff;
+}
+.product-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.product-thumb-fallback {
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  background: #eef2f7;
+  color: #475569;
+  font-size: 18px;
+  font-weight: 900;
+}
+.product-thumb-fallback[hidden] {
+  display: none;
+}
 .empty-row td {
   padding: 28px 20px;
   color: var(--text-muted);
@@ -729,6 +766,11 @@ td strong {
   color: #9a3412;
   font-size: 12px;
   font-weight: 800;
+}
+td .media-chip + .muted {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
 }
 .create-panel, .profile-panel, .payout-panel, .wholesale-panel {
   margin-top: 22px;
