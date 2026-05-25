@@ -60,7 +60,11 @@ const api = async (path, options = {}) => {
   } catch {
     data = {};
   }
-  if (!response.ok) throw new Error(data.error || data.message || "Request failed");
+  if (!response.ok) {
+    const error = new Error(data.error || data.message || "Request failed");
+    error.status = response.status;
+    throw error;
+  }
   return data;
 };
 
@@ -85,6 +89,11 @@ const clearSession = () => {
   state.profile = null;
   localStorage.removeItem("poohterSellerToken");
   localStorage.removeItem("poohterSeller");
+};
+
+const isAuthTokenError = (error) => {
+  const message = String(error?.message || "").toLowerCase();
+  return error?.status === 401 || message.includes("invalid token") || message.includes("no token");
 };
 
 const showApp = (isAuthed) => {
@@ -1008,6 +1017,14 @@ const loadDashboard = async () => {
     loadSection("/seller/wholesale/products", [], "Wholesale products"),
     loadSection("/seller/wholesale/orders", [], "Wholesale orders"),
   ]);
+
+  const authError = [profile, products, orders, payouts, wholesaleProducts, wholesaleOrders].find((section) => !section.ok && isAuthTokenError(section.error));
+  if (authError) {
+    clearSession();
+    showApp(false);
+    showToast("Your seller session expired. Please log in again.", "error", 6500);
+    return;
+  }
 
   state.profile = profile.data;
   if (products.ok) {
