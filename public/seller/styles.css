@@ -730,7 +730,8 @@ body.viewer-open {
   position: relative;
   z-index: 1;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, auto) auto;
+  gap: 12px;
   width: min(980px, 100%);
   max-height: calc(100vh - 48px);
   overflow: hidden;
@@ -784,10 +785,12 @@ body.viewer-open {
 }
 .image-viewer-stage {
   position: relative;
-  display: grid;
-  min-height: 420px;
-  height: min(68vh, 620px);
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: min(70vh, calc(100vh - 180px));
+  min-height: 360px;
+  padding: 18px 68px;
   overflow: hidden;
   background:
     linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%),
@@ -797,8 +800,10 @@ body.viewer-open {
 }
 .image-viewer-stage img {
   display: block;
-  width: 100%;
-  height: 100%;
+  width: auto;
+  height: auto;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
 }
 .image-viewer-fallback {
@@ -843,7 +848,8 @@ body.viewer-open {
 .image-viewer-thumbs {
   display: flex;
   gap: 10px;
-  padding: 12px 14px;
+  min-height: 84px;
+  padding: 12px 14px 16px;
   overflow-x: auto;
   border-top: 1px solid var(--border);
   background: #f8fafc;
@@ -864,7 +870,7 @@ body.viewer-open {
 .image-viewer-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
 }
 .empty-row td {
   padding: 28px 20px;
@@ -1684,8 +1690,9 @@ td .media-chip + .muted {
     max-height: calc(100vh - 24px);
   }
   .image-viewer-stage {
-    min-height: 300px;
-    height: 62vh;
+    min-height: 240px;
+    height: calc(100vh - 168px);
+    padding: 14px 48px;
   }
   .image-viewer-arrow {
     width: 40px;
@@ -1701,6 +1708,10 @@ td .media-chip + .muted {
     flex-basis: 62px;
     width: 62px;
     height: 52px;
+  }
+  .image-viewer-thumbs {
+    min-height: 74px;
+    padding: 10px 12px 12px;
   }
   .form-grid.compact {
     max-height: none;
