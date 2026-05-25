@@ -2,7 +2,7 @@ import { StyleSheet, View } from "react-native";
 
 const SellerDashboardFrame = () => (
   <iframe
-    src="/seller/index.html?v=20260524-wholesaler-flow"
+    src="/seller/index.html?v=20260525-wholesale-images"
     title="Poohter Seller Dashboard"
     style={styles.frame}
   />
