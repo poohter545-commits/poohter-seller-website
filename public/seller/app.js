@@ -352,11 +352,10 @@ const sellerProductImages = (product = {}) => productImageUrls(product, 5);
 const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") => {
   const image = wholesaleProductImages(product)[0];
   const productName = escapeHtml(productDisplayName(product));
-  const productId = escapeHtml(String(product.id));
   const fallback = `<span class="wholesale-image-fallback"${image ? " hidden" : ""}>No image</span>`;
   return `
     <div class="${className}">
-      ${image ? `<img data-wholesale-img data-image-viewer="wholesale" data-image-product-id="${productId}" data-image-index="0" src="${escapeHtml(image)}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
+      ${image ? `<img data-wholesale-img src="${escapeHtml(image)}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
       ${fallback}
     </div>
   `;
@@ -988,6 +987,39 @@ const renderWholesale = () => {
     : `<tr class="empty-row"><td colspan="5">No wholesale supply requests yet.</td></tr>`;
 };
 
+const openWholesaleProductDetail = (productId, updateRoute = true) => {
+  const product = state.wholesaleProducts.find((item) => String(item.id) === String(productId));
+  if (!product) return false;
+
+  state.selectedWholesalerId = wholesaleSupplierKey(product);
+  state.selectedWholesaleProductId = String(product.id);
+  renderWholesale();
+
+  if (updateRoute) {
+    history.pushState(null, "", `#wholesale-products/${encodeURIComponent(product.id)}`);
+  }
+  return true;
+};
+
+const returnToWholesaleProducts = (updateRoute = true) => {
+  state.selectedWholesaleProductId = "";
+  renderWholesale();
+  if (updateRoute) history.pushState(null, "", "#wholesale");
+};
+
+const applyWholesaleRouteFromHash = () => {
+  const route = window.location.hash.replace(/^#\/?/, "");
+  const match = /^(?:wholesale-products|products)\/([^/]+)$/.exec(route);
+  if (match) return openWholesaleProductDetail(decodeURIComponent(match[1]), false);
+  if (route === "wholesale") {
+    state.selectedWholesalerId = "";
+    state.selectedWholesaleProductId = "";
+    renderWholesale();
+    return true;
+  }
+  return false;
+};
+
 const renderAll = () => {
   renderProfile();
   renderMetrics();
@@ -1040,6 +1072,7 @@ const loadDashboard = async () => {
   state.wholesaleProducts = Array.isArray(wholesaleProducts.data) ? wholesaleProducts.data : [];
   state.wholesaleOrders = Array.isArray(wholesaleOrders.data) ? wholesaleOrders.data : [];
   renderAll();
+  applyWholesaleRouteFromHash();
 };
 
 on("#loginMode", "click", () => {
@@ -1308,12 +1341,10 @@ on("#wholesaleProducts", "click", (event) => {
     renderWholesale();
   }
   if (productButton) {
-    state.selectedWholesaleProductId = productButton.dataset.wholesaleProductId;
-    renderWholesale();
+    openWholesaleProductDetail(productButton.dataset.wholesaleProductId);
   }
   if (productBackButton) {
-    state.selectedWholesaleProductId = "";
-    renderWholesale();
+    returnToWholesaleProducts();
   }
   if (supplierBackButton) {
     state.selectedWholesalerId = "";
@@ -1339,6 +1370,8 @@ document.querySelectorAll(".nav a").forEach((link) => {
     }
   });
 });
+
+window.addEventListener("hashchange", applyWholesaleRouteFromHash);
 
 showApp(Boolean(state.token));
 if (state.token) loadDashboard();
