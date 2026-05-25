@@ -688,7 +688,11 @@ td strong {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: zoom-in;
   object-fit: contain;
+}
+[data-wholesale-img] {
+  cursor: zoom-in;
 }
 .product-thumb-fallback {
   display: grid;
@@ -702,6 +706,165 @@ td strong {
 }
 .product-thumb-fallback[hidden] {
   display: none;
+}
+body.viewer-open {
+  overflow: hidden;
+}
+.image-viewer {
+  position: fixed;
+  inset: 0;
+  z-index: 2200;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+.image-viewer-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.78);
+  backdrop-filter: blur(10px);
+}
+.image-viewer-shell {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
+  width: min(980px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: var(--radius);
+  background: #ffffff;
+  box-shadow: 0 32px 80px rgba(0, 0, 0, 0.34);
+}
+.image-viewer-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--border);
+  background: #ffffff;
+}
+.image-viewer-top div {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+.image-viewer-top span {
+  color: var(--market-orange-dark);
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+.image-viewer-top strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-main);
+  font-size: 16px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.image-viewer-close,
+.image-viewer-arrow,
+.image-viewer-thumb {
+  display: grid;
+  place-items: center;
+}
+.image-viewer-close {
+  width: 38px;
+  height: 38px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #334155;
+  font-weight: 900;
+}
+.image-viewer-stage {
+  position: relative;
+  display: grid;
+  min-height: 420px;
+  height: min(68vh, 620px);
+  place-items: center;
+  overflow: hidden;
+  background:
+    linear-gradient(45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(255, 255, 255, 0.04) 25%, transparent 25%),
+    #0f172a;
+  background-size: 22px 22px;
+}
+.image-viewer-stage img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.image-viewer-fallback {
+  padding: 12px 16px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
+  font-weight: 900;
+}
+.image-viewer-fallback[hidden] {
+  display: none;
+}
+.image-viewer-arrow {
+  position: absolute;
+  top: 50%;
+  z-index: 2;
+  width: 46px;
+  height: 62px;
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 8px;
+  background: rgba(15, 23, 42, 0.72);
+  color: #ffffff;
+  font-size: 28px;
+  font-weight: 900;
+  transform: translateY(-50%);
+  transition: background 0.18s ease, transform 0.18s ease;
+}
+.image-viewer-arrow:hover {
+  background: rgba(20, 110, 180, 0.9);
+  transform: translateY(-50%) scale(1.04);
+}
+.image-viewer-arrow:disabled {
+  opacity: 0.32;
+  pointer-events: none;
+}
+.image-viewer-prev {
+  left: 14px;
+}
+.image-viewer-next {
+  right: 14px;
+}
+.image-viewer-thumbs {
+  display: flex;
+  gap: 10px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  border-top: 1px solid var(--border);
+  background: #f8fafc;
+}
+.image-viewer-thumb {
+  flex: 0 0 72px;
+  width: 72px;
+  height: 58px;
+  overflow: hidden;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background: #ffffff;
+  box-shadow: var(--shadow-sm);
+}
+.image-viewer-thumb.active {
+  border-color: var(--market-orange);
+}
+.image-viewer-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 .empty-row td {
   padding: 28px 20px;
@@ -1038,6 +1201,7 @@ td .media-chip + .muted {
   display: block;
   width: 100%;
   height: 100%;
+  cursor: zoom-in;
   object-fit: cover;
   transition: transform 0.25s ease;
 }
@@ -1512,6 +1676,31 @@ td .media-chip + .muted {
   }
   .wholesale-field-group .mini-btn {
     width: 100%;
+  }
+  .image-viewer {
+    padding: 12px;
+  }
+  .image-viewer-shell {
+    max-height: calc(100vh - 24px);
+  }
+  .image-viewer-stage {
+    min-height: 300px;
+    height: 62vh;
+  }
+  .image-viewer-arrow {
+    width: 40px;
+    height: 54px;
+  }
+  .image-viewer-prev {
+    left: 8px;
+  }
+  .image-viewer-next {
+    right: 8px;
+  }
+  .image-viewer-thumb {
+    flex-basis: 62px;
+    width: 62px;
+    height: 52px;
   }
   .form-grid.compact {
     max-height: none;

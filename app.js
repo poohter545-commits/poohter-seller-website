@@ -13,6 +13,8 @@ const state = {
   token: localStorage.getItem("poohterSellerToken") || "",
   seller: readJsonStorage("poohterSeller"),
   products: [],
+  productLoadError: "",
+  imageViewer: { images: [], index: 0, title: "" },
   orders: [],
   wholesaleProducts: [],
   wholesaleOrders: [],
@@ -73,6 +75,7 @@ const clearSession = () => {
   state.token = "";
   state.seller = null;
   state.products = [];
+  state.productLoadError = "";
   state.orders = [];
   state.wholesaleProducts = [];
   state.wholesaleOrders = [];
@@ -340,10 +343,11 @@ const sellerProductImages = (product = {}) => productImageUrls(product, 5);
 const wholesalePrimaryImageHtml = (product, className = "wholesale-tile-image") => {
   const image = wholesaleProductImages(product)[0];
   const productName = escapeHtml(productDisplayName(product));
+  const productId = escapeHtml(String(product.id));
   const fallback = `<span class="wholesale-image-fallback"${image ? " hidden" : ""}>No image</span>`;
   return `
     <div class="${className}">
-      ${image ? `<img data-wholesale-img src="${image}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
+      ${image ? `<img data-wholesale-img data-image-viewer="wholesale" data-image-product-id="${productId}" data-image-index="0" src="${escapeHtml(image)}" alt="${productName}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />` : ""}
       ${fallback}
     </div>
   `;
@@ -381,11 +385,12 @@ const wholesaleGalleryHtml = (product) => {
     return `<div class="wholesale-gallery empty"><span>W</span></div>`;
   }
   const productName = escapeHtml(productDisplayName(product));
+  const productId = escapeHtml(String(product.id));
   return `
     <div class="wholesale-gallery image-count-${images.length}">
       ${images.map((image, index) => `
         <figure class="wholesale-gallery-item ${index === 0 ? "is-main" : ""}">
-          <img data-wholesale-img src="${image}" alt="${productName} image ${index + 1}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
+          <img data-wholesale-img data-image-viewer="wholesale" data-image-product-id="${productId}" data-image-index="${index}" src="${escapeHtml(image)}" alt="${productName} image ${index + 1}" loading="lazy" onerror="this.hidden=true;this.nextElementSibling.hidden=false" />
           <span class="wholesale-image-fallback" hidden>No image</span>
         </figure>
       `).join("")}
@@ -511,13 +516,143 @@ const productDisplayName = (product) => {
 const productThumbHtml = (product) => {
   const image = sellerProductImages(product)[0];
   const productName = escapeHtml(productDisplayName(product));
+  const productId = escapeHtml(String(product.id));
   const fallbackText = escapeHtml(String(product.name || "P").trim().slice(0, 1).toUpperCase() || "P");
   return `
     <span class="product-thumb">
-      ${image ? `<img data-product-img src="${image}" alt="${productName}" loading="lazy" />` : ""}
+      ${image ? `<img data-product-img data-image-viewer="seller" data-image-product-id="${productId}" data-image-index="0" src="${escapeHtml(image)}" alt="${productName}" loading="lazy" />` : ""}
       <span class="product-thumb-fallback"${image ? " hidden" : ""}>${fallbackText}</span>
     </span>
   `;
+};
+
+const imageViewerProduct = (type, productId) => {
+  const source = type === "wholesale" ? state.wholesaleProducts : state.products;
+  return source.find((product) => String(product.id) === String(productId));
+};
+
+const viewerImagesForProduct = (type, product) => (
+  type === "wholesale" ? wholesaleProductImages(product) : sellerProductImages(product)
+);
+
+const ensureImageViewer = () => {
+  let viewer = $("#imageViewer");
+  if (viewer) return viewer;
+
+  document.body.insertAdjacentHTML("beforeend", `
+    <div class="image-viewer hidden" id="imageViewer" role="dialog" aria-modal="true" aria-label="Product image viewer">
+      <button class="image-viewer-backdrop" type="button" data-viewer-close aria-label="Close image viewer"></button>
+      <div class="image-viewer-shell">
+        <div class="image-viewer-top">
+          <div>
+            <span id="imageViewerCounter">1 / 1</span>
+            <strong id="imageViewerTitle">Product image</strong>
+          </div>
+          <button class="image-viewer-close" type="button" data-viewer-close aria-label="Close image viewer">X</button>
+        </div>
+        <div class="image-viewer-stage">
+          <button class="image-viewer-arrow image-viewer-prev" type="button" data-viewer-prev aria-label="Previous image">&lt;</button>
+          <img id="imageViewerImg" alt="" />
+          <span class="image-viewer-fallback" id="imageViewerFallback" hidden>Image unavailable</span>
+          <button class="image-viewer-arrow image-viewer-next" type="button" data-viewer-next aria-label="Next image">&gt;</button>
+        </div>
+        <div class="image-viewer-thumbs" id="imageViewerThumbs"></div>
+      </div>
+    </div>
+  `);
+
+  viewer = $("#imageViewer");
+  viewer.querySelectorAll("[data-viewer-close]").forEach((button) => button.addEventListener("click", closeImageViewer));
+  viewer.querySelector("[data-viewer-prev]").addEventListener("click", () => moveImageViewer(-1));
+  viewer.querySelector("[data-viewer-next]").addEventListener("click", () => moveImageViewer(1));
+  viewer.querySelector("#imageViewerThumbs").addEventListener("click", (event) => {
+    const thumb = event.target.closest("[data-viewer-thumb]");
+    if (!thumb) return;
+    state.imageViewer.index = Number(thumb.dataset.viewerThumb || 0);
+    renderImageViewer();
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if ($("#imageViewer")?.classList.contains("hidden")) return;
+    if (event.key === "Escape") closeImageViewer();
+    if (event.key === "ArrowLeft") moveImageViewer(-1);
+    if (event.key === "ArrowRight") moveImageViewer(1);
+  });
+
+  return viewer;
+};
+
+const renderImageViewer = () => {
+  const viewer = ensureImageViewer();
+  const { images, index, title } = state.imageViewer;
+  const image = images[index] || "";
+  const imageElement = viewer.querySelector("#imageViewerImg");
+  const fallback = viewer.querySelector("#imageViewerFallback");
+  const counter = viewer.querySelector("#imageViewerCounter");
+  const titleElement = viewer.querySelector("#imageViewerTitle");
+  const prev = viewer.querySelector("[data-viewer-prev]");
+  const next = viewer.querySelector("[data-viewer-next]");
+  const thumbs = viewer.querySelector("#imageViewerThumbs");
+
+  imageElement.hidden = false;
+  fallback.hidden = true;
+  imageElement.src = image;
+  imageElement.alt = title ? `${title} image ${index + 1}` : `Product image ${index + 1}`;
+  imageElement.onerror = () => {
+    imageElement.hidden = true;
+    fallback.hidden = false;
+  };
+  counter.textContent = `${index + 1} / ${images.length}`;
+  titleElement.textContent = title || "Product image";
+  prev.disabled = images.length <= 1;
+  next.disabled = images.length <= 1;
+  thumbs.innerHTML = images.map((src, thumbIndex) => `
+    <button class="image-viewer-thumb ${thumbIndex === index ? "active" : ""}" type="button" data-viewer-thumb="${thumbIndex}" aria-label="View image ${thumbIndex + 1}">
+      <img src="${escapeHtml(src)}" alt="" loading="lazy" />
+    </button>
+  `).join("");
+};
+
+const openImageViewer = ({ images, index = 0, title = "" }) => {
+  if (!images.length) return;
+  state.imageViewer = {
+    images,
+    index: Math.max(0, Math.min(Number(index) || 0, images.length - 1)),
+    title,
+  };
+  renderImageViewer();
+  ensureImageViewer().classList.remove("hidden");
+  document.body.classList.add("viewer-open");
+};
+
+const closeImageViewer = () => {
+  $("#imageViewer")?.classList.add("hidden");
+  document.body.classList.remove("viewer-open");
+};
+
+const moveImageViewer = (step) => {
+  const { images } = state.imageViewer;
+  if (images.length <= 1) return;
+  state.imageViewer.index = (state.imageViewer.index + step + images.length) % images.length;
+  renderImageViewer();
+};
+
+const openProductImageViewerFromTarget = (target) => {
+  const image = target.closest("[data-image-viewer]");
+  if (!image) return false;
+
+  const type = image.dataset.imageViewer;
+  const product = imageViewerProduct(type, image.dataset.imageProductId);
+  if (!product) return false;
+
+  const images = viewerImagesForProduct(type, product);
+  const clickedIndex = Number(image.dataset.imageIndex);
+  openImageViewer({
+    images,
+    index: Number.isFinite(clickedIndex) ? clickedIndex : 0,
+    title: productDisplayName(product),
+  });
+  return true;
 };
 
 const productStatusLabel = (status) => {
@@ -687,6 +822,11 @@ const renderOrders = () => {
 };
 
 const renderProducts = () => {
+  if (state.productLoadError) {
+    $("#productsList").innerHTML = `<tr class="empty-row"><td colspan="6">Could not load products: ${escapeHtml(state.productLoadError)}</td></tr>`;
+    return;
+  }
+
   const query = $("#productSearch").value.trim().toLowerCase();
   const products = query
     ? state.products.filter((item) => `${item.name || ""} ${item.name_urdu || ""}`.toLowerCase().includes(query))
@@ -851,23 +991,34 @@ const renderAll = () => {
 const loadDashboard = async () => {
   if (!state.token) return;
   try {
-    const [profile, products, orders, payouts, wholesaleProducts, wholesaleOrders] = await Promise.all([
-      api("/seller/profile").catch(() => null),
-      api("/seller/products").catch(() => []),
-      api("/seller/orders").catch(() => []),
-      api("/seller/payouts").catch(() => null),
-      api("/seller/wholesale/products").catch(() => []),
-      api("/seller/wholesale/orders").catch(() => []),
+    const products = await api("/seller/products");
+    const optionalApi = async (path, fallback, label) => {
+      try {
+        return await api(path);
+      } catch (error) {
+        console.warn(`${label} load failed`, error);
+        return fallback;
+      }
+    };
+    const [profile, orders, payouts, wholesaleProducts, wholesaleOrders] = await Promise.all([
+      optionalApi("/seller/profile", null, "Profile"),
+      optionalApi("/seller/orders", [], "Orders"),
+      optionalApi("/seller/payouts", null, "Payouts"),
+      optionalApi("/seller/wholesale/products", [], "Wholesale products"),
+      optionalApi("/seller/wholesale/orders", [], "Wholesale orders"),
     ]);
     state.profile = profile;
     state.products = Array.isArray(products) ? products : [];
+    state.productLoadError = "";
     state.orders = Array.isArray(orders) ? orders : [];
     state.payouts = payouts;
     state.wholesaleProducts = Array.isArray(wholesaleProducts) ? wholesaleProducts : [];
     state.wholesaleOrders = Array.isArray(wholesaleOrders) ? wholesaleOrders : [];
     renderAll();
   } catch (error) {
-    showToast(error.message, "error");
+    state.productLoadError = error.message || "Request failed";
+    renderProducts();
+    showToast(`Could not load seller products: ${state.productLoadError}`, "error", 6500);
   }
 };
 
@@ -1075,6 +1226,7 @@ on("#ordersList", "click", async (event) => {
 on("#orderFilter", "change", renderOrders);
 on("#productSearch", "input", renderProducts);
 on("#productsList", "click", (event) => {
+  if (openProductImageViewerFromTarget(event.target)) return;
   const button = event.target.closest("[data-receipt]");
   if (!button) return;
   downloadReceipt(button.dataset.receipt);
@@ -1121,6 +1273,11 @@ on("#wholesaleProducts", "submit", async (event) => {
   }
 });
 on("#wholesaleProducts", "click", (event) => {
+  if (openProductImageViewerFromTarget(event.target)) {
+    event.preventDefault();
+    event.stopPropagation();
+    return;
+  }
   const wholesalerButton = event.target.closest("[data-wholesaler-id]");
   const productButton = event.target.closest("[data-wholesale-product-id]");
   const supplierBackButton = event.target.closest("[data-wholesale-supplier-back]");

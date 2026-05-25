@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Request Poohter Seller Account Deletion</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="styles.css?v=20260520-legal" />
+  </head>
+  <body class="legal-page">
+    <header class="legal-hero">
+      <nav class="legal-nav" aria-label="Legal navigation">
+        <a class="legal-brand" href="index.html"><span class="brand-mark">P</span><span>POOHTER</span></a>
+        <div>
+          <a href="privacy-policy.html">Privacy Policy</a>
+          <a href="delete-account.html">Delete Account</a>
+        </div>
+      </nav>
+      <div class="legal-hero-copy">
+        <p class="eyebrow">Poohter Seller</p>
+        <h1>Request Account Deletion</h1>
+        <p>Use this page to request deletion of your Poohter Seller account and related personal data.</p>
+      </div>
+    </header>
+
+    <main class="legal-shell legal-two-column">
+      <section class="legal-card">
+        <h2>Submit Your Request</h2>
+        <form class="legal-form" id="deleteAccountForm">
+          <input type="hidden" name="accountType" value="seller" />
+          <label>Full name
+            <input name="name" autocomplete="name" placeholder="Your name" />
+          </label>
+          <label>Seller account email
+            <input name="email" type="email" autocomplete="email" required placeholder="seller@example.com" />
+          </label>
+          <label>Phone number
+            <input name="phone" autocomplete="tel" placeholder="03xx-xxxxxxx" />
+          </label>
+          <label>Reason optional
+            <textarea name="reason" rows="4" placeholder="Tell us anything we should know before processing."></textarea>
+          </label>
+          <label class="legal-check">
+            <input name="confirmed" type="checkbox" required />
+            <span>I confirm that I want to request deletion of my Poohter Seller account.</span>
+          </label>
+          <button class="primary-btn" type="submit">Submit deletion request</button>
+        </form>
+        <p class="legal-status" id="deleteRequestStatus" role="status" aria-live="polite"></p>
+        <a class="outline-link hidden" id="deleteMailLink" href="mailto:support@poohter.com">Email support instead</a>
+      </section>
+
+      <section class="legal-card">
+        <h2>What Happens Next</h2>
+        <ol class="legal-list">
+          <li>Poohter support receives your request and may verify that you own the seller account.</li>
+          <li>After verification, we disable or delete the seller login and remove personal profile details where possible.</li>
+          <li>Requests are normally reviewed within 30 days.</li>
+        </ol>
+
+        <h2>Data We Delete</h2>
+        <p>We delete or de-identify seller profile information, login data, verification uploads, shop details, and product/media data that is no longer needed for active marketplace operations.</p>
+
+        <h2>Data We May Keep</h2>
+        <p>We may retain order, payout, tax, accounting, security, fraud-prevention, dispute, or legal records where required by law or legitimate marketplace safety needs.</p>
+
+        <p>For help, contact <a href="mailto:support@poohter.com">support@poohter.com</a>.</p>
+      </section>
+    </main>
+
+    <script src="legal.js?v=20260520-legal"></script>
+  </body>
+</html>
