@@ -990,36 +990,39 @@ const renderAll = () => {
 
 const loadDashboard = async () => {
   if (!state.token) return;
-  try {
-    const products = await api("/seller/products");
-    const optionalApi = async (path, fallback, label) => {
-      try {
-        return await api(path);
-      } catch (error) {
-        console.warn(`${label} load failed`, error);
-        return fallback;
-      }
-    };
-    const [profile, orders, payouts, wholesaleProducts, wholesaleOrders] = await Promise.all([
-      optionalApi("/seller/profile", null, "Profile"),
-      optionalApi("/seller/orders", [], "Orders"),
-      optionalApi("/seller/payouts", null, "Payouts"),
-      optionalApi("/seller/wholesale/products", [], "Wholesale products"),
-      optionalApi("/seller/wholesale/orders", [], "Wholesale orders"),
-    ]);
-    state.profile = profile;
-    state.products = Array.isArray(products) ? products : [];
+
+  const loadSection = async (path, fallback, label) => {
+    try {
+      return { ok: true, data: await api(path) };
+    } catch (error) {
+      console.warn(`${label} load failed`, error);
+      return { ok: false, data: fallback, error };
+    }
+  };
+
+  const [profile, products, orders, payouts, wholesaleProducts, wholesaleOrders] = await Promise.all([
+    loadSection("/seller/profile", null, "Profile"),
+    loadSection("/seller/products", [], "Seller products"),
+    loadSection("/seller/orders", [], "Orders"),
+    loadSection("/seller/payouts", null, "Payouts"),
+    loadSection("/seller/wholesale/products", [], "Wholesale products"),
+    loadSection("/seller/wholesale/orders", [], "Wholesale orders"),
+  ]);
+
+  state.profile = profile.data;
+  if (products.ok) {
+    state.products = Array.isArray(products.data) ? products.data : [];
     state.productLoadError = "";
-    state.orders = Array.isArray(orders) ? orders : [];
-    state.payouts = payouts;
-    state.wholesaleProducts = Array.isArray(wholesaleProducts) ? wholesaleProducts : [];
-    state.wholesaleOrders = Array.isArray(wholesaleOrders) ? wholesaleOrders : [];
-    renderAll();
-  } catch (error) {
-    state.productLoadError = error.message || "Request failed";
-    renderProducts();
+  } else {
+    state.products = [];
+    state.productLoadError = products.error?.message || "Request failed";
     showToast(`Could not load seller products: ${state.productLoadError}`, "error", 6500);
   }
+  state.orders = Array.isArray(orders.data) ? orders.data : [];
+  state.payouts = payouts.data;
+  state.wholesaleProducts = Array.isArray(wholesaleProducts.data) ? wholesaleProducts.data : [];
+  state.wholesaleOrders = Array.isArray(wholesaleOrders.data) ? wholesaleOrders.data : [];
+  renderAll();
 };
 
 on("#loginMode", "click", () => {
