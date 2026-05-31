@@ -213,6 +213,19 @@ const validateSignupStep = () => {
 };
 
 const money = (value) => `Rs ${Math.round(Number(value || 0)).toLocaleString()}`;
+const normalizeOrderStatus = (status = "pending") => ({
+  packed: "accepted",
+  shipped: "out_from_warehouse",
+  out_for_delivery: "out_from_warehouse",
+}[status] || status || "pending");
+const orderStatusLabel = (status) => ({
+  pending: "Pending",
+  accepted: "Ready",
+  out_from_warehouse: "Out from warehouse",
+  delivered: "Delivered",
+  successful: "Successful",
+  cancelled: "Cancelled",
+}[normalizeOrderStatus(status)] || String(status || "pending").replace(/_/g, " "));
 const WHOLESALE_PAYMENT = {
   method: "Easypaisa",
   accountNumber: "03428787873",
@@ -723,6 +736,113 @@ const downloadPdf = (filename, title, lines) => {
   URL.revokeObjectURL(url);
 };
 
+const receiptQrPayload = (product = {}, profile = {}) => JSON.stringify({
+  type: "poohter_seller_warehouse_receipt",
+  receipt_code: product.receipt_code || "",
+  product_uid: product.product_uid || "",
+  product_id: product.id || "",
+  expected_stock: Number(product.expected_stock || 0),
+  seller_id: profile.cnic_number || profile.seller_id || "",
+});
+
+const receiptQrUrl = (product = {}, profile = {}, size = 220) =>
+  `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&margin=12&data=${encodeURIComponent(receiptQrPayload(product, profile))}`;
+
+const sellerReceiptHtml = (product = {}, profile = {}) => {
+  const receiptCode = product.receipt_code || "Not available";
+  const productUid = product.product_uid || "Not available";
+  const productName = productDisplayName(product);
+  const sellerName = profile.shop_name || profile.name || "Seller";
+  const printedAt = new Date().toLocaleString();
+  const rows = [
+    ["Receipt Code", receiptCode],
+    ["Product Unique ID", productUid],
+    ["Product", productName],
+    ["Expected Stock", product.expected_stock || 0],
+    ["Seller", sellerName],
+    ["Phone", profile.phone || ""],
+    ["Seller CNIC/ID", profile.cnic_number || profile.seller_id || ""],
+    ["Generated", printedAt],
+  ].map(([label, value]) => `
+    <tr>
+      <th>${escapeHtml(label)}</th>
+      <td>${escapeHtml(value)}</td>
+    </tr>
+  `).join("");
+
+  return `<!doctype html>
+  <html>
+    <head>
+      <meta charset="utf-8" />
+      <title>${escapeHtml(receiptCode)}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { margin: 0; padding: 28px; background: #f3f4f6; color: #111827; font-family: Arial, Helvetica, sans-serif; }
+        .receipt { max-width: 760px; margin: 0 auto; background: #fff; border: 1px solid #e5e7eb; border-radius: 18px; overflow: hidden; }
+        .top { display: flex; justify-content: space-between; gap: 20px; padding: 28px 32px; background: #0f4e63; color: #fff; border-bottom: 10px solid #f59e0b; }
+        .brand { font-size: 30px; font-weight: 900; letter-spacing: 1px; }
+        .subtitle { margin-top: 4px; color: #dbeafe; font-size: 14px; font-weight: 700; }
+        .status { align-self: flex-start; background: #ecfdf5; color: #047857; border-radius: 999px; padding: 10px 14px; font-size: 12px; font-weight: 900; }
+        .hero { display: flex; justify-content: space-between; gap: 28px; padding: 28px 32px; border-bottom: 1px solid #e5e7eb; }
+        .label { color: #64748b; font-size: 11px; text-transform: uppercase; font-weight: 900; margin-bottom: 6px; }
+        .code { font-size: 28px; font-weight: 900; margin-bottom: 20px; }
+        .uid { font-size: 22px; font-weight: 900; color: #0f766e; }
+        .qr { text-align: center; min-width: 190px; border: 1px solid #e5e7eb; border-radius: 16px; padding: 14px; background: #fff; }
+        .qr img { width: 160px; height: 160px; display: block; }
+        .qr span { display: block; margin-top: 8px; color: #64748b; font-size: 11px; font-weight: 800; }
+        .instruction { margin: 24px 32px; padding: 16px; border-radius: 14px; background: #eff6ff; color: #1d4ed8; font-weight: 800; }
+        table { width: calc(100% - 64px); margin: 0 32px 28px; border-collapse: collapse; }
+        th, td { border-bottom: 1px solid #e5e7eb; padding: 12px; text-align: left; font-size: 13px; }
+        th { width: 38%; color: #0f4e63; background: #f8fafc; font-weight: 900; }
+        td { color: #334155; font-weight: 700; }
+        .footer { padding: 0 32px 28px; color: #64748b; font-size: 12px; }
+        @media print {
+          body { background: #fff; padding: 0; }
+          .receipt { border-radius: 0; border: 0; max-width: none; }
+        }
+      </style>
+    </head>
+    <body>
+      <main class="receipt">
+        <section class="top">
+          <div>
+            <div class="brand">POOHTER</div>
+            <div class="subtitle">Seller warehouse sending receipt</div>
+          </div>
+          <div class="status">SCAN BEFORE TOP TEAM</div>
+        </section>
+        <section class="hero">
+          <div>
+            <div class="label">Receipt code</div>
+            <div class="code">${escapeHtml(receiptCode)}</div>
+            <div class="label">Product unique ID</div>
+            <div class="uid">${escapeHtml(productUid)}</div>
+          </div>
+          <div class="qr">
+            <img src="${receiptQrUrl(product, profile)}" alt="Receipt QR code" />
+            <span>Scan at warehouse</span>
+          </div>
+        </section>
+        <div class="instruction">Send this product stock to the Poohter warehouse with this receipt attached. Admin cannot send it to Top Team until this QR receipt is scanned.</div>
+        <table><tbody>${rows}</tbody></table>
+        <div class="footer">Printed: ${escapeHtml(printedAt)}. The QR code contains the receipt code, product UID, product ID, expected stock, and seller ID.</div>
+      </main>
+      <script>window.addEventListener("load", () => setTimeout(() => window.print(), 500));</script>
+    </body>
+  </html>`;
+};
+
+const printSellerReceipt = (product = {}, profile = {}) => {
+  const popup = window.open("", "_blank", "width=900,height=900");
+  if (!popup) {
+    showToast("Allow popups to print the warehouse receipt", "error");
+    return;
+  }
+  popup.document.open();
+  popup.document.write(sellerReceiptHtml(product, profile));
+  popup.document.close();
+};
+
 const downloadReceipt = (productId) => {
   const product = state.products.find((item) => String(item.id) === String(productId));
   const profile = state.profile?.seller || state.seller || {};
@@ -731,20 +851,7 @@ const downloadReceipt = (productId) => {
     return;
   }
 
-  const receiptLines = [
-    `Receipt Code: ${product.receipt_code}`,
-    `Product Unique ID: ${product.product_uid}`,
-    `Product: ${productDisplayName(product)}`,
-    `Expected Stock: ${product.expected_stock || 0}`,
-    `Seller: ${profile.shop_name || profile.name || "Seller"}`,
-    `Phone: ${profile.phone || ""}`,
-    `Seller CNIC/ID: ${profile.cnic_number || profile.seller_id || ""}`,
-    `Generated: ${new Date().toLocaleString()}`,
-    "",
-    "Send this product stock to the Poohter warehouse with this receipt.",
-  ];
-
-  downloadPdf(`${product.receipt_code}.pdf`, "POOHTER WAREHOUSE SENDING RECEIPT", receiptLines);
+  printSellerReceipt(product, profile);
 };
 
 const orderTotal = (order) => {
@@ -804,22 +911,24 @@ const renderProfile = () => {
 
 const renderOrders = () => {
   const filter = $("#orderFilter").value;
-  const orders = filter === "all" ? state.orders : state.orders.filter((order) => order.status === filter);
+  const orders = filter === "all" ? state.orders : state.orders.filter((order) => normalizeOrderStatus(order.status) === filter);
   $("#ordersList").innerHTML = orders.length
     ? orders
         .map((order) => {
           const id = order.order_code || order.order_id || order.id;
+          const normalizedStatus = normalizeOrderStatus(order.status);
           const items = (order.seller_items || []).map((item) => `<div>${item.name} (x${item.quantity})</div>`).join("") || "No item details";
           return `
             <tr>
               <td><strong>#${id}</strong></td>
               <td>${items}</td>
               <td><strong>${money(orderTotal(order))}</strong></td>
-              <td><span class="badge ${order.status}">${order.status || "pending"}</span></td>
+              <td><span class="badge ${normalizedStatus}">${orderStatusLabel(order.status)}</span></td>
               <td>
                 <div class="row-actions">
-                ${order.status === "pending" ? `<button class="mini-btn" data-ship="${order.order_id || order.id}">Ship</button>` : ""}
-                ${order.status === "shipped" ? `<button class="mini-btn" data-deliver="${order.order_id || order.id}">Delivered</button>` : ""}
+                ${normalizedStatus === "pending" ? `<span class="muted">Waiting for admin acceptance</span>` : ""}
+                ${normalizedStatus === "accepted" ? `<span class="muted">Waiting for warehouse scan</span>` : ""}
+                ${normalizedStatus === "out_from_warehouse" ? `<button class="mini-btn" data-deliver="${order.order_id || order.id}">Delivered</button>` : ""}
                 </div>
               </td>
             </tr>
@@ -1258,10 +1367,9 @@ on("#translateProductName", "click", async () => {
 });
 
 on("#ordersList", "click", async (event) => {
-  const ship = event.target.closest("[data-ship]");
   const deliver = event.target.closest("[data-deliver]");
-  const id = ship?.dataset.ship || deliver?.dataset.deliver;
-  const status = ship ? "shipped" : deliver ? "delivered" : "";
+  const id = deliver?.dataset.deliver;
+  const status = deliver ? "delivered" : "";
   if (!id || !status) return;
   try {
     await api(`/seller/orders/${id}/status`, {
@@ -1373,5 +1481,31 @@ document.querySelectorAll(".nav a").forEach((link) => {
 
 window.addEventListener("hashchange", applyWholesaleRouteFromHash);
 
+function mountPoohterContactWidget() {
+  const mount = document.querySelector(".poohter-contact-widget");
+  if (!mount || mount.dataset.ready === "true") return;
+  mount.dataset.ready = "true";
+  const accountType = mount.dataset.accountType || window.POOHTER_ACCOUNT_TYPE || "seller";
+  const phoneNumber = window.POOHTER_WHATSAPP_NUMBER || "923000000000";
+  const whatsappText = encodeURIComponent(`Hello Poohter, I need help with my ${accountType} account.`);
+  mount.innerHTML = `
+    <style>.poohter-contact-widget{position:fixed;right:18px;bottom:18px;z-index:80;display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap;justify-content:flex-end}.poohter-contact-widget button,.poohter-contact-widget a{border:0;border-radius:8px;min-height:44px;padding:0 14px;font:inherit;font-weight:900;text-decoration:none;display:inline-flex;align-items:center;gap:8px;box-shadow:0 12px 24px rgba(15,23,42,.18);cursor:pointer}.poohter-contact-widget .call-btn{background:#0f172a;color:#fff}.poohter-contact-widget .wa-btn{background:#16a34a;color:#fff}.poohter-contact-form{position:fixed;right:18px;bottom:76px;width:min(340px,calc(100vw - 36px));background:#fff;border:1px solid #dbe3ef;border-radius:8px;padding:14px;box-shadow:0 20px 48px rgba(15,23,42,.2);display:none;gap:10px}.poohter-contact-form.open{display:grid}.poohter-contact-form input,.poohter-contact-form textarea{width:100%;border:1px solid #cbd5e1;border-radius:8px;padding:10px;font:inherit}.poohter-contact-form textarea{min-height:74px;resize:vertical}.poohter-contact-form .form-row{display:flex;gap:8px}@media(max-width:560px){.poohter-contact-widget{left:12px;right:12px}.poohter-contact-widget button,.poohter-contact-widget a{flex:1;justify-content:center}.poohter-contact-form{left:12px;right:12px;width:auto}}</style>
+    <form class="poohter-contact-form"><input name="phone" placeholder="03XXXXXXXXX" required /><textarea name="message" placeholder="Message optional"></textarea><div class="form-row"><button class="call-btn" type="submit">Send Request</button><button class="call-btn" type="button" data-close-contact>Close</button></div></form>
+    <button class="call-btn" type="button" data-open-contact>Request Call</button><a class="wa-btn" href="https://wa.me/${phoneNumber}?text=${whatsappText}" target="_blank" rel="noreferrer">WhatsApp</a>`;
+  const form = mount.querySelector(".poohter-contact-form");
+  mount.querySelector("[data-open-contact]").addEventListener("click", () => form.classList.toggle("open"));
+  mount.querySelector("[data-close-contact]").addEventListener("click", () => form.classList.remove("open"));
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      const response = await fetch(`${API_BASE}/support/request-call`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone: form.phone.value, message: form.message.value, account_type: accountType, source: "website", name: state?.seller?.name || "" }) });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error || "Could not send request");
+      form.reset(); form.classList.remove("open"); showToast("Call request sent.", "success");
+    } catch (error) { showToast(error.message, "error"); }
+  });
+}
+
+mountPoohterContactWidget();
 showApp(Boolean(state.token));
 if (state.token) loadDashboard();

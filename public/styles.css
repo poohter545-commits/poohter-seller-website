@@ -716,8 +716,10 @@ td strong {
 .badge.topteam_pending { background: #fff7ed; color: var(--warning); }
 .badge.live { background: #f0fdf4; color: var(--success); }
 .badge.rejected { background: #fef2f2; color: var(--danger); }
-.badge.accepted { background: #eff6ff; color: var(--primary); }
-.badge.packed { background: #fff7ed; color: var(--warning); }
+.badge.accepted,
+.badge.packed { background: #eff6ff; color: var(--primary); }
+.badge.out_from_warehouse,
+.badge.out_for_delivery,
 .badge.shipped { background: #faf5ff; color: #9333ea; }
 .badge.delivered,
 .badge.successful { background: #f0fdf4; color: var(--success); }
