@@ -833,13 +833,17 @@ const sellerReceiptHtml = (product = {}, profile = {}) => {
 };
 
 const printSellerReceipt = (product = {}, profile = {}) => {
+  const html = sellerReceiptHtml(product, profile);
   const popup = window.open("", "_blank", "width=900,height=900");
   if (!popup) {
-    showToast("Allow popups to print the warehouse receipt", "error");
+    const receiptWindow = window.open(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`, "_blank");
+    if (!receiptWindow) {
+      showToast("Allow popups to print the warehouse receipt", "error");
+    }
     return;
   }
   popup.document.open();
-  popup.document.write(sellerReceiptHtml(product, profile));
+  popup.document.write(html);
   popup.document.close();
 };
 
