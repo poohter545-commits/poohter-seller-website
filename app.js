@@ -736,6 +736,103 @@ const downloadPdf = (filename, title, lines) => {
   URL.revokeObjectURL(url);
 };
 
+const downloadBlob = (blob, filename) => {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+};
+
+const dataUrlBytes = (dataUrl) => {
+  const base64 = String(dataUrl || "").split(",")[1] || "";
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index);
+  }
+  return bytes;
+};
+
+const loadImageDataUrl = (url, width = 240, height = 240) => new Promise((resolve, reject) => {
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    context.drawImage(image, 0, 0, width, height);
+    resolve(canvas.toDataURL("image/jpeg", 0.95));
+  };
+  image.onerror = () => reject(new Error("QR image could not be loaded for the receipt PDF."));
+  image.src = url;
+});
+
+const binaryStringToBlob = (binary, type) => {
+  const bytes = new Uint8Array(binary.length);
+  for (let index = 0; index < binary.length; index += 1) {
+    bytes[index] = binary.charCodeAt(index) & 0xff;
+  }
+  return new Blob([bytes], { type });
+};
+
+const downloadPdfWithQr = async (filename, title, lines, qrImageUrl) => {
+  const qrDataUrl = await loadImageDataUrl(qrImageUrl, 240, 240);
+  const qrBytes = dataUrlBytes(qrDataUrl);
+  const qrBinary = Array.from(qrBytes, (byte) => String.fromCharCode(byte)).join("");
+  const detailLines = lines.slice(0, 13);
+  const contentLines = [
+    "BT",
+    "/F1 22 Tf",
+    "42 782 Td",
+    `(${pdfText(title)}) Tj`,
+    "/F2 12 Tf",
+    "0 -24 Td",
+    "(A Trust Where Quality Matters) Tj",
+    "/F1 11 Tf",
+    "0 -42 Td",
+    ...detailLines.flatMap((line) => [`(${pdfText(line)}) Tj`, "0 -18 Td"]),
+    "ET",
+    "q",
+    "156 0 0 156 382 576 cm",
+    "/Im1 Do",
+    "Q",
+    "BT",
+    "/F2 10 Tf",
+    "399 558 Td",
+    "(Scan at warehouse) Tj",
+    "ET",
+  ];
+  const stream = contentLines.join("\n");
+  const objects = [
+    "<< /Type /Catalog /Pages 2 0 R >>",
+    "<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+    "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 4 0 R /F2 5 0 R >> /XObject << /Im1 6 0 R >> >> /Contents 7 0 R >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
+    "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
+    `<< /Type /XObject /Subtype /Image /Width 240 /Height 240 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${qrBytes.length} >>\nstream\n${qrBinary}\nendstream`,
+    `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`,
+  ];
+  let pdf = "%PDF-1.4\n";
+  const offsets = [0];
+  objects.forEach((object, index) => {
+    offsets.push(pdf.length);
+    pdf += `${index + 1} 0 obj\n${object}\nendobj\n`;
+  });
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
+  offsets.slice(1).forEach((offset) => {
+    pdf += `${String(offset).padStart(10, "0")} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  downloadBlob(binaryStringToBlob(pdf, "application/pdf"), filename);
+};
+
 const receiptQrPayload = (product = {}, profile = {}) => JSON.stringify({
   type: "poohter_seller_warehouse_receipt",
   receipt_code: product.receipt_code || "",
@@ -831,7 +928,7 @@ const sellerReceiptHtml = (product = {}, profile = {}) => {
   </html>`;
 };
 
-const downloadReceipt = (productId) => {
+const downloadReceipt = async (productId) => {
   const product = state.products.find((item) => String(item.id) === String(productId));
   const profile = state.profile?.seller || state.seller || {};
   if (!product?.product_uid || !product?.receipt_code) {
@@ -839,8 +936,7 @@ const downloadReceipt = (productId) => {
     return;
   }
 
-  downloadPdf(`Poohter-${product.receipt_code || product.product_uid || product.id}.pdf`, "Poohter Seller Warehouse Receipt", [
-    "A Trust Where Quality Matters",
+  const lines = [
     `Receipt Code: ${product.receipt_code || ""}`,
     `Product Unique ID: ${product.product_uid || ""}`,
     `Product: ${productDisplayName(product)}`,
@@ -850,8 +946,19 @@ const downloadReceipt = (productId) => {
     `Generated: ${new Date().toLocaleString()}`,
     `QR Payload: ${receiptQrPayload(product, profile)}`,
     "Send this product stock to the Poohter warehouse with this receipt attached.",
-  ]);
-  showToast("Receipt PDF downloaded", "success");
+  ];
+
+  try {
+    await downloadPdfWithQr(
+      `Poohter-${product.receipt_code || product.product_uid || product.id}.pdf`,
+      "Poohter Seller Warehouse Receipt",
+      lines,
+      receiptQrUrl(product, profile, 240)
+    );
+    showToast("Receipt PDF with QR code downloaded", "success");
+  } catch (error) {
+    showToast(error.message || "Could not generate QR receipt PDF.", "error");
+  }
 };
 
 const orderTotal = (order) => {
