@@ -827,24 +827,8 @@ const sellerReceiptHtml = (product = {}, profile = {}) => {
         <table><tbody>${rows}</tbody></table>
         <div class="footer">Printed: ${escapeHtml(printedAt)}. The QR code contains the receipt code, product UID, product ID, expected stock, and seller ID.</div>
       </main>
-      <script>window.addEventListener("load", () => setTimeout(() => window.print(), 500));</script>
     </body>
   </html>`;
-};
-
-const printSellerReceipt = (product = {}, profile = {}) => {
-  const html = sellerReceiptHtml(product, profile);
-  const popup = window.open("", "_blank", "width=900,height=900");
-  if (!popup) {
-    const receiptWindow = window.open(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`, "_blank");
-    if (!receiptWindow) {
-      showToast("Allow popups to print the warehouse receipt", "error");
-    }
-    return;
-  }
-  popup.document.open();
-  popup.document.write(html);
-  popup.document.close();
 };
 
 const downloadReceipt = (productId) => {
@@ -855,7 +839,19 @@ const downloadReceipt = (productId) => {
     return;
   }
 
-  printSellerReceipt(product, profile);
+  downloadPdf(`Poohter-${product.receipt_code || product.product_uid || product.id}.pdf`, "Poohter Seller Warehouse Receipt", [
+    "A Trust Where Quality Matters",
+    `Receipt Code: ${product.receipt_code || ""}`,
+    `Product Unique ID: ${product.product_uid || ""}`,
+    `Product: ${productDisplayName(product)}`,
+    `Expected Stock: ${product.expected_stock || 0}`,
+    `Seller: ${profile.shop_name || profile.name || ""}`,
+    `Seller CNIC/ID: ${profile.cnic_number || profile.seller_id || ""}`,
+    `Generated: ${new Date().toLocaleString()}`,
+    `QR Payload: ${receiptQrPayload(product, profile)}`,
+    "Send this product stock to the Poohter warehouse with this receipt attached.",
+  ]);
+  showToast("Receipt PDF downloaded", "success");
 };
 
 const orderTotal = (order) => {
@@ -896,6 +892,11 @@ const renderProfile = () => {
   $("#storeTitle").textContent = profile.shop_name || profile.name || "Poohter Seller";
   $("#storeSubtitle").textContent = profile.email ? `${profile.email} - ${profile.city || "Seller account"}` : "Connected to backend API";
   $("#accountStatus").textContent = `Account status: ${profile.status || "unknown"}`;
+  if (profile.cnic_update_status === "requested" || profile.cnic_update_status === "rejected") {
+    $("#accountStatus").textContent = "Account status: CNIC update required";
+  } else if (profile.cnic_update_status === "uploaded") {
+    $("#accountStatus").textContent = "Account status: CNIC update waiting for admin review";
+  }
   $("#sellerAvatar").textContent = String(profile.name || profile.shop_name || "P").slice(0, 1).toUpperCase();
 
   const fields = [
@@ -906,11 +907,27 @@ const renderProfile = () => {
     ["City", profile.city],
     ["Business", profile.business_type],
     ["CNIC", profile.cnic_number || profile.seller_id],
+    ["CNIC Update", cnicUpdateLabel(profile)],
   ];
 
   $("#profileGrid").innerHTML = fields
     .map(([label, value]) => `<div class="profile-item"><span>${label}</span><strong>${value || "Not provided"}</strong></div>`)
     .join("");
+
+  const form = $("#cnicUpdateForm");
+  if (form) {
+    const required = ["requested", "rejected"].includes(profile.cnic_update_status);
+    form.classList.toggle("hidden", !required);
+    $("#cnicUpdateMessage").textContent = profile.cnic_update_rejection_reason || profile.cnic_update_note || "Upload clear front and back CNIC images for admin review.";
+  }
+};
+
+const cnicUpdateLabel = (profile = {}) => {
+  if (profile.cnic_update_status === "requested") return "CNIC update required";
+  if (profile.cnic_update_status === "uploaded") return "Uploaded, waiting for admin review";
+  if (profile.cnic_update_status === "rejected") return `Rejected - ${profile.cnic_update_rejection_reason || "upload again"}`;
+  if (profile.cnic_update_status === "approved") return "Latest update approved";
+  return "Clear";
 };
 
 const renderOrders = () => {
@@ -1343,6 +1360,20 @@ on("#productForm", "submit", async (event) => {
     form.reset();
     await loadDashboard();
     showToast("Product submitted", "success");
+  } catch (error) {
+    showToast(error.message, "error");
+  }
+});
+
+on("#cnicUpdateForm", "submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const formData = new FormData(form);
+  try {
+    const data = await api("/seller/cnic-update", { method: "POST", body: formData });
+    form.reset();
+    await loadDashboard();
+    showToast(data.message || "CNIC images uploaded for admin review", "success");
   } catch (error) {
     showToast(error.message, "error");
   }
