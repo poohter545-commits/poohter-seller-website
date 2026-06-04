@@ -279,6 +279,36 @@ const normalizeOrderStatus = (status = "pending") => ({
   shipped: "out_from_warehouse",
   out_for_delivery: "out_from_warehouse",
 }[status] || status || "pending");
+const emptyStateRow = (colspan, title, copy = "", action = "") => `
+  <tr class="empty-row">
+    <td colspan="${colspan}">
+      <div class="empty-state">
+        <span class="empty-icon">P</span>
+        <strong>${escapeHtml(title)}</strong>
+        ${copy ? `<p>${escapeHtml(copy)}</p>` : ""}
+        ${action}
+      </div>
+    </td>
+  </tr>
+`;
+
+const setDashboardLoading = () => {
+  $("#stockAlerts").innerHTML = `
+    <div class="skeleton-line wide"></div>
+    <div class="skeleton-line"></div>
+  `;
+  $("#productsList").innerHTML = emptyStateRow(6, "Loading product catalog", "Fetching your latest products.");
+  $("#ordersList").innerHTML = emptyStateRow(5, "Loading orders", "Checking the newest fulfillment updates.");
+  $("#wholesaleProducts").innerHTML = `<div class="dashboard-loading"><span></span><strong>Loading wholesale marketplace</strong></div>`;
+  $("#wholesaleOrdersList").innerHTML = emptyStateRow(5, "Loading wholesale requests", "Fetching supply request history.");
+  $("#payoutSummary").innerHTML = `
+    <article><span>Pending payout</span><strong>...</strong></article>
+    <article><span>Total sent</span><strong>...</strong></article>
+    <article><span>Total earned</span><strong>...</strong></article>
+    <article><span>Last sent</span><strong>...</strong></article>
+  `;
+  $("#payoutsList").innerHTML = emptyStateRow(5, "Loading payouts", "Fetching settlement history.");
+};
 const orderStatusLabel = (status) => ({
   pending: "Pending",
   accepted: "Ready",
@@ -1116,23 +1146,27 @@ const renderStockAlerts = () => {
     ? alerts
         .map((item) => `
           <div class="stock-alert">
-            <strong>!</strong>
-            <span>Stock low for <strong>${item.name || "Untitled product"}</strong>. Only ${item.stock_quantity || 0} units left.</span>
+            <strong>LOW</strong>
+            <span>Stock low for <strong>${escapeHtml(item.name || "Untitled product")}</strong>. Only ${item.stock_quantity || 0} units left.</span>
           </div>
         `)
         .join("")
-    : `<div class="stock-ok">All stock levels are healthy.</div>`;
+    : `<div class="stock-ok"><strong>Inventory looks healthy</strong><span>No urgent low-stock alerts right now.</span></div>`;
 };
 
 const renderProfile = () => {
   const profile = state.profile?.seller || state.seller || {};
   $("#storeTitle").textContent = profile.shop_name || profile.name || "Poohter Seller";
   $("#storeSubtitle").textContent = profile.email ? `${profile.email} - ${profile.city || "Seller account"}` : "Connected to backend API";
-  $("#accountStatus").textContent = `Account status: ${profile.status || "unknown"}`;
+  const statusEl = $("#accountStatus");
+  statusEl.className = `top-status ${profile.status || "unknown"}`;
+  statusEl.textContent = `Account status: ${profile.status || "unknown"}`;
   if (profile.cnic_update_status === "requested" || profile.cnic_update_status === "rejected") {
-    $("#accountStatus").textContent = "Account status: CNIC update required";
+    statusEl.className = "top-status warning";
+    statusEl.textContent = "CNIC update required";
   } else if (profile.cnic_update_status === "uploaded") {
-    $("#accountStatus").textContent = "Account status: CNIC update waiting for admin review";
+    statusEl.className = "top-status pending";
+    statusEl.textContent = "CNIC waiting for review";
   }
   $("#sellerAvatar").textContent = String(profile.name || profile.shop_name || "P").slice(0, 1).toUpperCase();
 
@@ -1192,12 +1226,12 @@ const renderOrders = () => {
           `;
         })
         .join("")
-    : `<tr class="empty-row"><td colspan="5">No ${filter === "all" ? "" : filter} orders found.</td></tr>`;
+    : emptyStateRow(5, "No orders found", filter === "all" ? "New seller orders will appear here as soon as buyers place them." : `No ${filter} orders match this filter.`);
 };
 
 const renderProducts = () => {
   if (state.productLoadError) {
-    $("#productsList").innerHTML = `<tr class="empty-row"><td colspan="6">Could not load products: ${escapeHtml(state.productLoadError)}</td></tr>`;
+    $("#productsList").innerHTML = emptyStateRow(6, "Could not load products", state.productLoadError);
     return;
   }
 
@@ -1236,7 +1270,7 @@ const renderProducts = () => {
         `;
         })
         .join("")
-    : `<tr class="empty-row"><td colspan="6">No products found. Add your first listing below.</td></tr>`;
+    : emptyStateRow(6, "No products found", query ? "Try a different search keyword." : "Create your first listing from the Add Product section below.", `<a class="mini-link" href="#create">Add first product</a>`);
   attachProductImageFallbacks($("#productsList"));
 };
 
@@ -1266,7 +1300,7 @@ const renderPayouts = () => {
           </tr>
         `)
         .join("")
-    : `<tr class="empty-row"><td colspan="5">No payout has been marked sent yet.</td></tr>`;
+    : emptyStateRow(5, "No payouts yet", "Sent payouts and payment references will appear here.");
 };
 
 const wholesaleStatusLabel = (status) => {
@@ -1300,7 +1334,7 @@ const renderWholesale = () => {
   }
 
   if (!products.length) {
-    productWrap.innerHTML = `<div class="stock-ok">No wholesale products are available yet.</div>`;
+    productWrap.innerHTML = `<div class="premium-empty"><span>W</span><strong>No wholesale products yet</strong><p>Approved supplier products will appear here when available.</p></div>`;
   } else if (!selectedWholesaler) {
     productWrap.innerHTML = `
       <div class="wholesale-directory">
@@ -1350,7 +1384,7 @@ const renderWholesale = () => {
           </tr>
         `)
         .join("")
-    : `<tr class="empty-row"><td colspan="5">No wholesale supply requests yet.</td></tr>`;
+    : emptyStateRow(5, "No wholesale requests yet", "Your supply requests will appear after you order from a wholesaler.");
 };
 
 const openWholesaleProductDetail = (productId, updateRoute = true) => {
@@ -1397,6 +1431,7 @@ const renderAll = () => {
 
 const loadDashboard = async () => {
   if (!state.token) return;
+  setDashboardLoading();
 
   const loadSection = async (path, fallback, label) => {
     try {

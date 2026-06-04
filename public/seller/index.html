@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260604-seller-auth-ui" />
+    <link rel="stylesheet" href="styles.css?v=20260604-seller-dashboard-ui" />
   </head>
   <body>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -139,16 +139,17 @@
       <aside class="sidebar">
         <a class="side-brand" href="#overview">
           <span class="brand-mark">P</span>
-          <span>POOHTER</span>
+          <span>Poohter</span>
         </a>
+        <div class="side-caption">Seller operations center</div>
         <nav class="nav">
-          <a class="active" href="#overview">Dashboard</a>
-          <a href="#products">My Products</a>
-          <a href="#wholesale">Wholesale Products</a>
-          <a href="#orders">Order List</a>
-          <a href="#create">Add Product</a>
-          <a href="#payouts">Payouts</a>
-          <a href="#profile">Profile</a>
+          <a class="active" href="#overview"><span class="nav-icon">D</span>Dashboard</a>
+          <a href="#products"><span class="nav-icon">P</span>My Products</a>
+          <a href="#wholesale"><span class="nav-icon">W</span>Wholesale Products</a>
+          <a href="#orders"><span class="nav-icon">O</span>Order List</a>
+          <a href="#create"><span class="nav-icon">+</span>Add Product</a>
+          <a href="#payouts"><span class="nav-icon">Rs</span>Payouts</a>
+          <a href="#profile"><span class="nav-icon">A</span>Profile</a>
         </nav>
         <div class="side-legal">
           <a href="privacy-policy.html">Privacy Policy</a>
@@ -159,10 +160,11 @@
 
       <main class="main">
         <header class="topbar">
-          <div>
+          <div class="top-identity">
             <span class="top-kicker">Seller Center</span>
             <h1 id="storeTitle">Seller dashboard</h1>
             <p id="storeSubtitle">Connected to backend API</p>
+            <span class="top-status" id="accountStatus">Checking account status</span>
           </div>
           <div class="top-actions">
             <button class="outline-btn" id="refreshBtn" type="button">Refresh</button>
@@ -176,17 +178,17 @@
             <div>
               <span class="top-kicker">Operations</span>
               <h2>Dashboard Overview</h2>
-              <p id="accountStatus">Checking account status</p>
+              <p>Track catalog health, fulfillment, wholesale sourcing, and payouts in one place.</p>
             </div>
             <div class="attention-pill"><strong id="attentionCount">0</strong> need attention</div>
           </section>
 
           <section class="stats-grid">
-            <article class="stat-card"><span class="stat-icon blue">P</span><div><h3>Total Products</h3><p id="productCount">0</p></div></article>
-            <article class="stat-card"><span class="stat-icon green">O</span><div><h3>Total Orders</h3><p id="orderCount">0</p></div></article>
-            <article class="stat-card"><span class="stat-icon yellow">Rs</span><div><h3>Total Sales</h3><p id="revenueTotal">Rs 0</p></div></article>
-            <article class="stat-card"><span class="stat-icon red">!</span><div><h3>Low Stock</h3><p id="lowStockCount">0</p></div></article>
-            <article class="stat-card"><span class="stat-icon green">Pay</span><div><h3>Pending Payout</h3><p id="pendingPayoutTotal">Rs 0</p></div></article>
+            <article class="stat-card"><span class="stat-icon blue">CAT</span><div><h3>Total Products</h3><p id="productCount">0</p><small>Catalog listings</small></div></article>
+            <article class="stat-card"><span class="stat-icon green">ORD</span><div><h3>Total Orders</h3><p id="orderCount">0</p><small>All seller orders</small></div></article>
+            <article class="stat-card"><span class="stat-icon yellow">Rs</span><div><h3>Total Sales</h3><p id="revenueTotal">Rs 0</p><small>Gross order value</small></div></article>
+            <article class="stat-card"><span class="stat-icon red">LOW</span><div><h3>Low Stock</h3><p id="lowStockCount">0</p><small>Needs attention</small></div></article>
+            <article class="stat-card"><span class="stat-icon green">PAY</span><div><h3>Pending Payout</h3><p id="pendingPayoutTotal">Rs 0</p><small>Awaiting settlement</small></div></article>
           </section>
 
           <section class="data-card stock-card">
@@ -264,7 +266,7 @@
                 <p class="eyebrow">New Listing</p>
                 <h2>Add Product</h2>
               </div>
-              <span class="muted">Connected to seller products API</span>
+              <span class="muted">Create a quality listing for admin review</span>
             </div>
             <form id="productForm" class="form-grid">
               <label class="with-action">Product name
@@ -326,6 +328,11 @@
       </main>
     </div>
 
-    <script src="app.js?v=20260604-seller-auth-ui"></script>
+    <div class="poohter-contact-widget" data-account-type="seller"></div>
+    <script>
+      window.POOHTER_ACCOUNT_TYPE = "seller";
+      window.POOHTER_WHATSAPP_NUMBER = window.POOHTER_WHATSAPP_NUMBER || "923000000000";
+    </script>
+    <script src="app.js?v=20260604-seller-dashboard-ui"></script>
   </body>
 </html>
