@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet" />
-    <link rel="stylesheet" href="styles.css?v=20260525-modal-fit" />
+    <link rel="stylesheet" href="styles.css?v=20260604-seller-auth-ui" />
   </head>
   <body>
     <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -17,9 +17,9 @@
         <div class="brand-header">
           <div class="brand-row">
             <span class="brand-mark">P</span>
-            <span>POOHTER</span>
+            <span>Poohter Seller Center</span>
           </div>
-          <p>A Trust Where Quality Matters</p>
+          <p>A Trust Where Quality Matters.</p>
         </div>
 
         <div class="mode-switch" role="tablist" aria-label="Authentication mode">
@@ -29,9 +29,10 @@
 
         <form class="auth-form" id="loginForm">
           <h1>Seller Sign In</h1>
-          <p>Enter your Poohter seller dashboard.</p>
-          <label>Email <input name="email" type="email" required autocomplete="email" placeholder="seller@mail.com" /></label>
-          <label>Password <span class="password-input"><input name="password" type="password" required autocomplete="current-password" placeholder="Password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+          <p>Sign in to manage orders, catalog, stock, and payouts.</p>
+          <div class="auth-note">Approved seller accounts can access the dashboard. New applications stay locked until admin approval.</div>
+          <label>Work Email <input name="email" type="email" required autocomplete="email" placeholder="seller@shop.com" /></label>
+          <label>Password <span class="password-input"><input name="password" type="password" required autocomplete="current-password" placeholder="Enter your password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
           <button class="text-link" id="forgotPassword" type="button">Forgot password?</button>
           <button class="primary-btn" type="submit">Enter Dashboard</button>
         </form>
@@ -43,8 +44,8 @@
           <div class="otp-panel hidden" id="resetOtpPanel">
             <label>Email OTP <input name="otp" inputmode="numeric" maxlength="6" placeholder="6 digit code" /></label>
             <button class="resend-otp-btn" id="resetResendOtp" type="button" disabled>Resend OTP in 60s</button>
-            <label>New password <span class="password-input"><input name="password" type="password" minlength="6" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
-            <label>Confirm password <span class="password-input"><input name="confirmPassword" type="password" minlength="6" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+            <label>New password <span class="password-input"><input name="password" type="password" minlength="6" placeholder="Use number and special character" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+            <label>Confirm password <span class="password-input"><input name="confirmPassword" type="password" minlength="6" placeholder="Repeat new password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
           </div>
           <div class="signup-actions">
             <button class="outline-btn" id="resetBack" type="button">Back</button>
@@ -55,45 +56,62 @@
         <form class="auth-form hidden" id="signupForm">
           <h1>Create Seller Account</h1>
           <p>Complete your seller profile to submit for admin approval.</p>
+          <div class="auth-note">Keep CNIC images clear and account details accurate. Admin reviews every application before login is enabled.</div>
           <div class="stepper" aria-label="Seller registration steps">
-            <span class="step-pill active" data-step-pill="1">1<small>Basic</small></span>
+            <span class="step-pill active" data-step-pill="1">1<small>Account</small></span>
             <span class="step-pill" data-step-pill="2">2<small>Business</small></span>
             <span class="step-pill" data-step-pill="3">3<small>Identity</small></span>
             <span class="step-pill" data-step-pill="4">4<small>Payment</small></span>
           </div>
 
           <div class="form-step active" data-signup-step="1">
+            <div class="step-copy">
+              <strong>Account Information</strong>
+              <span>Create the owner login for your seller center.</span>
+            </div>
             <div class="form-grid compact">
-              <label>Owner name <input name="name" required /></label>
-              <label>Email <input name="email" type="email" required /></label>
-              <label>Password <span class="password-input"><input name="password" type="password" required autocomplete="new-password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
-              <label>Confirm password <span class="password-input"><input name="confirmPassword" type="password" required autocomplete="new-password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
-              <label>Phone <input name="phone" required /></label>
+              <label>Owner name <input name="name" required placeholder="Muhammad Ali" /></label>
+              <label>Work email <input name="email" type="email" required autocomplete="email" placeholder="seller@shop.com" /></label>
+              <label>Password <span class="password-input"><input name="password" type="password" required autocomplete="new-password" placeholder="Use number and special character" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+              <label>Confirm password <span class="password-input"><input name="confirmPassword" type="password" required autocomplete="new-password" placeholder="Repeat password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+              <label>Phone <input name="phone" required placeholder="0300-1234567" /></label>
             </div>
           </div>
 
           <div class="form-step" data-signup-step="2">
+            <div class="step-copy">
+              <strong>Business Details</strong>
+              <span>This information helps Poohter verify and operate your store.</span>
+            </div>
             <div class="form-grid compact">
-              <label>Shop name <input name="shop_name" required /></label>
-              <label>Business type <input name="business_type" placeholder="Fashion, home, grocery..." /></label>
-              <label>City <input name="city" required /></label>
+              <label>Shop name <input name="shop_name" required placeholder="Poohter Mart" /></label>
+              <label>Business type <input name="business_type" placeholder="Individual, fashion, home, grocery..." /></label>
+              <label>City <input name="city" required placeholder="Lahore" /></label>
             </div>
           </div>
 
           <div class="form-step" data-signup-step="3">
+            <div class="step-copy">
+              <strong>Identity Verification</strong>
+              <span>Upload both sides of CNIC. Use bright light and keep all corners visible.</span>
+            </div>
             <div class="form-grid compact">
-              <label>CNIC number <input name="cnic_number" required placeholder="xxxxx-xxxxxxx-x" /></label>
-              <label>CNIC front <input name="cnic_front" type="file" accept="image/png,image/jpeg" /></label>
-              <label>CNIC back <input name="cnic_back" type="file" accept="image/png,image/jpeg" /></label>
+              <label>CNIC number <input name="cnic_number" required placeholder="xxxxx-xxxxxxx-x" inputmode="numeric" /></label>
+              <label class="upload-label">CNIC front <input name="cnic_front" type="file" accept="image/png,image/jpeg" required /><span class="upload-box">Choose clear front image</span></label>
+              <label class="upload-label">CNIC back <input name="cnic_back" type="file" accept="image/png,image/jpeg" required /><span class="upload-box">Choose clear back image</span></label>
             </div>
           </div>
 
           <div class="form-step" data-signup-step="4">
+            <div class="step-copy">
+              <strong>Payment Information</strong>
+              <span>Add the account where seller settlements should arrive.</span>
+            </div>
             <div class="form-grid compact">
-              <label>Bank name <input name="bank_name" /></label>
-              <label>Account title <input name="account_title" /></label>
-              <label>Account number <input name="account_number" /></label>
-              <label>Mobile wallet <input name="mobile_wallet" /></label>
+              <label>Bank name <input name="bank_name" placeholder="Meezan Bank" /></label>
+              <label>Account title <input name="account_title" placeholder="Account holder name" /></label>
+              <label>Account / IBAN <input name="account_number" placeholder="PK00MEZN..." /></label>
+              <label>Mobile wallet <input name="mobile_wallet" placeholder="03xx-xxxxxxx" /></label>
             </div>
           </div>
 
@@ -308,6 +326,6 @@
       </main>
     </div>
 
-    <script src="app.js?v=20260525-product-detail-route"></script>
+    <script src="app.js?v=20260604-seller-auth-ui"></script>
   </body>
 </html>

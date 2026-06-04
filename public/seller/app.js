@@ -80,6 +80,22 @@ document.addEventListener("click", (event) => {
   updatePasswordToggle(button, shouldShow);
 });
 
+const setButtonLoading = (button, isLoading, text) => {
+  if (!button) return;
+  if (!button.dataset.idleText) button.dataset.idleText = button.textContent;
+  button.disabled = isLoading;
+  button.classList.toggle("is-loading", isLoading);
+  button.textContent = isLoading ? text : button.dataset.idleText;
+};
+
+document.addEventListener("change", (event) => {
+  const input = event.target.closest(".upload-label input[type='file']");
+  if (!input) return;
+  const box = input.closest(".upload-label")?.querySelector(".upload-box");
+  const count = input.files?.length || 0;
+  if (box) box.textContent = count ? `${count} file${count === 1 ? "" : "s"} selected` : box.dataset.placeholder || box.textContent;
+});
+
 const api = async (path, options = {}) => {
   const headers = options.headers ? { ...options.headers } : {};
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -232,10 +248,25 @@ const validateSignupStep = () => {
   if (state.signupStep === 1) {
     const password = $("#signupForm input[name='password']");
     const confirmPassword = $("#signupForm input[name='confirmPassword']");
+    if (!/^(?=.*[0-9])(?=.*[!@#$%^&*(),.?":{}|<>]).{6,}$/.test(password.value)) {
+      password.setCustomValidity("Password needs 6 characters, 1 number, and 1 special character.");
+      password.reportValidity();
+      password.setCustomValidity("");
+      return false;
+    }
     if (password.value !== confirmPassword.value) {
       confirmPassword.setCustomValidity("Passwords do not match.");
       confirmPassword.reportValidity();
       confirmPassword.setCustomValidity("");
+      return false;
+    }
+  }
+  if (state.signupStep === 3) {
+    const cnic = $("#signupForm input[name='cnic_number']");
+    if (!/^\d{5}-\d{7}-\d$/.test(cnic.value.trim())) {
+      cnic.setCustomValidity("Enter CNIC as xxxxx-xxxxxxx-x.");
+      cnic.reportValidity();
+      cnic.setCustomValidity("");
       return false;
     }
   }
@@ -1441,6 +1472,8 @@ on("#signupPrev", "click", () => {
 on("#loginForm", "submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
+  const submitButton = event.currentTarget.querySelector("button[type='submit']");
+  setButtonLoading(submitButton, true, "Signing in...");
   try {
     const result = await api("/seller/login", {
       method: "POST",
@@ -1456,16 +1489,16 @@ on("#loginForm", "submit", async (event) => {
       showToast(approvalPendingMessage, "error", 6500);
       return;
     }
-    showToast(error.message, "error");
+    showToast(error.message || "Invalid seller email or password.", "error");
+  } finally {
+    setButtonLoading(submitButton, false);
   }
 });
 
 on("#signupForm", "submit", async (event) => {
   event.preventDefault();
   const submitButton = $("#signupSubmit");
-  const originalText = submitButton.textContent;
-  submitButton.disabled = true;
-  submitButton.textContent = state.signupOtpPending ? "Verifying..." : "Sending OTP...";
+  setButtonLoading(submitButton, true, state.signupOtpPending ? "Verifying..." : "Sending OTP...");
   const formData = new FormData(event.currentTarget);
   const front = formData.get("cnic_front");
   const back = formData.get("cnic_back");
@@ -1496,8 +1529,8 @@ on("#signupForm", "submit", async (event) => {
   } catch (error) {
     showToast(error.message, "error");
   } finally {
-    submitButton.disabled = false;
-    submitButton.textContent = state.signupOtpPending ? "Verify Email & Submit" : originalText;
+    setButtonLoading(submitButton, false);
+    submitButton.textContent = state.signupOtpPending ? "Verify Email & Submit" : submitButton.dataset.idleText || "Create Seller Account";
   }
 });
 
@@ -1505,8 +1538,7 @@ on("#resetForm", "submit", async (event) => {
   event.preventDefault();
   const form = new FormData(event.currentTarget);
   const submitButton = $("#resetSubmit");
-  submitButton.disabled = true;
-  submitButton.textContent = state.resetOtpSent ? "Changing..." : "Sending...";
+  setButtonLoading(submitButton, true, state.resetOtpSent ? "Changing..." : "Sending...");
   try {
     const email = form.get("email");
     if (!state.resetOtpSent) {
@@ -1542,7 +1574,7 @@ on("#resetForm", "submit", async (event) => {
   } catch (error) {
     showToast(error.message, "error");
   } finally {
-    submitButton.disabled = false;
+    setButtonLoading(submitButton, false);
     setResetOtpMode(state.resetOtpSent);
   }
 });
@@ -1574,6 +1606,8 @@ on("#cnicUpdateForm", "submit", async (event) => {
   event.preventDefault();
   const form = event.currentTarget;
   const formData = new FormData(form);
+  const submitButton = form.querySelector("button[type='submit']");
+  setButtonLoading(submitButton, true, "Uploading CNIC...");
   try {
     const data = await api("/seller/cnic-update", { method: "POST", body: formData });
     form.reset();
@@ -1581,6 +1615,8 @@ on("#cnicUpdateForm", "submit", async (event) => {
     showToast(data.message || "CNIC images uploaded for admin review", "success");
   } catch (error) {
     showToast(error.message, "error");
+  } finally {
+    setButtonLoading(submitButton, false);
   }
 });
 

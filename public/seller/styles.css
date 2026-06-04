@@ -1845,3 +1845,381 @@ td .media-chip + .muted {
     text-align: center;
   }
 }
+
+/* Seller app aligned auth refresh */
+:root {
+  --primary: #2563eb;
+  --primary-dark: #1d4ed8;
+  --primary-soft: #eff6ff;
+  --brand-green: #0f766e;
+  --bg-body: #f6f8fb;
+  --shadow: 0 24px 64px rgba(15, 23, 42, 0.13);
+}
+
+.auth-screen {
+  place-items: start center;
+  padding: 34px 18px;
+  background:
+    radial-gradient(circle at 18% 12%, rgba(37, 99, 235, 0.15), transparent 32%),
+    radial-gradient(circle at 84% 18%, rgba(15, 118, 110, 0.14), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #f6f8fb 58%, #eef6ff 100%);
+}
+
+.auth-card {
+  width: min(100%, 480px);
+  padding: 22px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.96);
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.auth-card:has(#signupForm:not(.hidden)) {
+  width: min(100%, 980px);
+}
+
+.brand-header {
+  margin-bottom: 18px;
+  padding: 18px;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  text-align: left;
+}
+
+.brand-row {
+  justify-content: flex-start;
+  color: #fff;
+  font-size: clamp(21px, 3vw, 28px);
+}
+
+.brand-mark {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #2563eb;
+  box-shadow: inset 0 -10px 22px rgba(15, 23, 42, 0.18);
+}
+
+.brand-header p {
+  margin-top: 8px;
+  color: #cbd5e1;
+  font-size: 13px;
+  text-transform: none;
+}
+
+.brand-header p::after,
+.side-brand::after {
+  content: none;
+}
+
+.mode-switch {
+  margin-bottom: 18px;
+  padding: 5px;
+  border-radius: 10px;
+  background: #f1f5f9;
+}
+
+.mode {
+  border-radius: 8px;
+}
+
+.mode.active,
+.nav a.active {
+  background: #2563eb;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.20);
+}
+
+.auth-form {
+  gap: 13px;
+}
+
+.auth-form h1 {
+  color: #0f172a;
+  font-size: clamp(28px, 4vw, 38px);
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.auth-form > p {
+  max-width: 620px;
+  margin-bottom: 4px;
+  color: #64748b;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.auth-note,
+.step-copy {
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #1e3a8a;
+  font-weight: 800;
+}
+
+.auth-note {
+  padding: 12px 13px;
+  font-size: 13px;
+}
+
+.step-copy {
+  display: grid;
+  gap: 3px;
+  margin-bottom: 14px;
+  padding: 13px 14px;
+}
+
+.step-copy strong {
+  color: #0f172a;
+  font-size: 17px;
+}
+
+.step-copy span {
+  color: #475569;
+  font-size: 13px;
+  font-weight: 750;
+}
+
+.stepper {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin: 8px 0 18px;
+}
+
+.stepper::before {
+  content: none;
+}
+
+.step-pill {
+  width: auto;
+  height: auto;
+  min-height: 58px;
+  justify-items: start;
+  padding: 10px 12px;
+  border: 1px solid #dbeafe;
+  border-radius: 10px;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.step-pill.active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.step-pill.completed {
+  border-color: #0f766e;
+  background: #0f766e;
+  color: #fff;
+}
+
+.step-pill small {
+  position: static;
+  margin-top: 2px;
+  color: inherit;
+  font-size: 11px;
+  text-transform: none;
+}
+
+label {
+  color: #334155;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+input,
+textarea,
+select {
+  min-height: 48px;
+  border-color: #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+input:focus,
+textarea:focus,
+select:focus {
+  border-color: #2563eb;
+  background: #fff;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.11);
+}
+
+.password-input {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 48px;
+}
+
+.password-input input {
+  border-radius: 8px 0 0 8px;
+}
+
+.password-toggle {
+  min-height: 48px;
+  border: 1.5px solid #cbd5e1;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #f8fafc;
+  color: #64748b;
+}
+
+.password-toggle svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+}
+
+.form-grid.compact {
+  max-height: none;
+  gap: 16px;
+  padding: 0;
+}
+
+.upload-label {
+  position: relative;
+}
+
+.upload-label input[type="file"] {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.upload-box {
+  min-height: 88px;
+  display: grid;
+  place-items: center;
+  padding: 14px;
+  border: 1.5px dashed #94a3b8;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #2563eb;
+  text-align: center;
+  font-weight: 900;
+}
+
+.upload-label:hover .upload-box,
+.upload-label:focus-within .upload-box {
+  border-color: #2563eb;
+  background: #eff6ff;
+}
+
+.primary-btn,
+.primary-link {
+  min-height: 48px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, #2563eb, #0891b2);
+  box-shadow: 0 12px 24px rgba(37, 99, 235, 0.22);
+}
+
+.primary-btn:disabled,
+.outline-btn:disabled,
+.resend-otp-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
+  transform: none;
+  box-shadow: none;
+}
+
+.primary-btn.is-loading::before,
+.outline-btn.is-loading::before {
+  content: "";
+  width: 16px;
+  height: 16px;
+  margin-right: 8px;
+  border: 2px solid rgba(255,255,255,0.55);
+  border-top-color: #fff;
+  border-radius: 999px;
+  animation: sellerSpin 0.75s linear infinite;
+}
+
+.outline-btn.is-loading::before {
+  border-color: rgba(37, 99, 235, 0.24);
+  border-top-color: #2563eb;
+}
+
+@keyframes sellerSpin {
+  to { transform: rotate(360deg); }
+}
+
+.outline-btn,
+.mini-btn {
+  min-height: 48px;
+  border-radius: 8px;
+  color: #0f172a;
+}
+
+.text-link {
+  justify-self: end;
+  color: #2563eb;
+}
+
+.toast {
+  border-radius: 10px;
+  background: #111827;
+}
+
+.toast.error {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.toast.success {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.signup-actions {
+  margin-top: 6px;
+}
+
+.auth-legal-links {
+  margin-top: 18px;
+}
+
+@media (max-width: 720px) {
+  .auth-screen {
+    padding: 14px;
+  }
+
+  .auth-card {
+    padding: 16px;
+  }
+
+  .brand-header {
+    padding: 15px;
+  }
+
+  .stepper,
+  .form-grid.compact {
+    grid-template-columns: 1fr;
+  }
+
+  .step-pill {
+    min-height: 48px;
+  }
+
+  .signup-actions {
+    flex-direction: column-reverse;
+  }
+
+  .signup-actions .primary-btn,
+  .signup-actions .outline-btn {
+    width: 100%;
+  }
+
+  .toast {
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    min-width: 0;
+    max-width: none;
+  }
+}
