@@ -31,7 +31,7 @@
           <h1>Seller Sign In</h1>
           <p>Enter your Poohter seller dashboard.</p>
           <label>Email <input name="email" type="email" required autocomplete="email" placeholder="seller@mail.com" /></label>
-          <label>Password <input name="password" type="password" required autocomplete="current-password" placeholder="Password" /></label>
+          <label>Password <span class="password-input"><input name="password" type="password" required autocomplete="current-password" placeholder="Password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
           <button class="text-link" id="forgotPassword" type="button">Forgot password?</button>
           <button class="primary-btn" type="submit">Enter Dashboard</button>
         </form>
@@ -43,8 +43,8 @@
           <div class="otp-panel hidden" id="resetOtpPanel">
             <label>Email OTP <input name="otp" inputmode="numeric" maxlength="6" placeholder="6 digit code" /></label>
             <button class="resend-otp-btn" id="resetResendOtp" type="button" disabled>Resend OTP in 60s</button>
-            <label>New password <input name="password" type="password" minlength="6" /></label>
-            <label>Confirm password <input name="confirmPassword" type="password" minlength="6" /></label>
+            <label>New password <span class="password-input"><input name="password" type="password" minlength="6" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+            <label>Confirm password <span class="password-input"><input name="confirmPassword" type="password" minlength="6" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
           </div>
           <div class="signup-actions">
             <button class="outline-btn" id="resetBack" type="button">Back</button>
@@ -66,8 +66,8 @@
             <div class="form-grid compact">
               <label>Owner name <input name="name" required /></label>
               <label>Email <input name="email" type="email" required /></label>
-              <label>Password <input name="password" type="password" required /></label>
-              <label>Confirm password <input name="confirmPassword" type="password" required /></label>
+              <label>Password <span class="password-input"><input name="password" type="password" required autocomplete="new-password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
+              <label>Confirm password <span class="password-input"><input name="confirmPassword" type="password" required autocomplete="new-password" /><button class="password-toggle" type="button" aria-label="Show password" data-toggle-password></button></span></label>
               <label>Phone <input name="phone" required /></label>
             </div>
           </div>

@@ -50,6 +50,36 @@ const showToast = (message, type = "", duration = 3200) => {
   setTimeout(() => (toast.className = "toast"), duration);
 };
 
+const eyeIcon = `
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
+    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z"></path>
+    <circle cx="12" cy="12" r="3"></circle>
+  </svg>`;
+const eyeOffIcon = `
+  <svg viewBox="0 0 24 24" fill="none" stroke-width="2" aria-hidden="true">
+    <path d="m3 3 18 18"></path>
+    <path d="M10.6 10.6A2 2 0 0 0 13.4 13.4"></path>
+    <path d="M9.9 5.2A10.8 10.8 0 0 1 12 5c6.5 0 10 7 10 7a18.4 18.4 0 0 1-3.1 4.1"></path>
+    <path d="M6.6 6.8C3.6 8.8 2 12 2 12s3.5 7 10 7c1.3 0 2.5-.3 3.6-.7"></path>
+  </svg>`;
+
+const updatePasswordToggle = (button, visible = false) => {
+  button.innerHTML = visible ? eyeOffIcon : eyeIcon;
+  button.setAttribute("aria-label", visible ? "Hide password" : "Show password");
+};
+
+document.querySelectorAll("[data-toggle-password]").forEach((button) => updatePasswordToggle(button));
+
+document.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-toggle-password]");
+  if (!button) return;
+  const input = button.closest(".password-input")?.querySelector('input[type="password"], input[type="text"]');
+  if (!input) return;
+  const shouldShow = input.type === "password";
+  input.type = shouldShow ? "text" : "password";
+  updatePasswordToggle(button, shouldShow);
+});
+
 const api = async (path, options = {}) => {
   const headers = options.headers ? { ...options.headers } : {};
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -247,6 +277,8 @@ const getAssetUrl = (path) => {
   return `${assetBase}/${path.replace(/^uploads[\\/]/, "uploads/").replace(/\\/g, "/").replace(/^\/+/, "")}`;
 };
 
+const mediaProxyUrl = (path) => `${API_BASE}/media?src=${encodeURIComponent(String(path || "").trim())}`;
+
 function getImageUrl(path) {
   const original = path;
   const raw = String(path || "").trim();
@@ -283,7 +315,7 @@ function getImageUrl(path) {
   const cleanAssetUrl = (value) => {
     const clean = uploadPathFromValue(value);
     if (!clean) return finish("");
-    return finish(getAssetUrl(clean));
+    return finish(mediaProxyUrl(clean));
   };
 
   if (/^(data:|blob:)/i.test(raw)) return finish(raw);
@@ -297,7 +329,7 @@ function getImageUrl(path) {
     } catch {
       return finish(raw);
     }
-    return finish(getAssetUrl(raw));
+    return finish(mediaProxyUrl(raw));
   }
   return cleanAssetUrl(raw);
 }
