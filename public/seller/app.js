@@ -119,9 +119,34 @@ const updateSelectedFileList = (input) => {
   `;
 };
 
+const fileKey = (file) => `${file.name}:${file.size}:${file.lastModified}`;
+
+const mergeSelectedFiles = (input) => {
+  if (input.dataset.fileKind === "video" || !input.multiple || typeof DataTransfer === "undefined") return;
+  const maxFiles = Number(input.dataset.maxFiles || 0);
+  const currentFiles = input._poohterFiles || [];
+  const nextFiles = Array.from(input.files || []);
+  const merged = [];
+  const seen = new Set();
+  [...currentFiles, ...nextFiles].forEach((file) => {
+    const key = fileKey(file);
+    if (seen.has(key)) return;
+    seen.add(key);
+    merged.push(file);
+  });
+  const finalFiles = maxFiles > 0 ? merged.slice(0, maxFiles) : merged;
+  const transfer = new DataTransfer();
+  finalFiles.forEach((file) => transfer.items.add(file));
+  input.files = transfer.files;
+  input._poohterFiles = finalFiles;
+};
+
 document.addEventListener("change", (event) => {
   const input = event.target.closest("input[type='file'][data-file-list]");
-  if (input) updateSelectedFileList(input);
+  if (input) {
+    mergeSelectedFiles(input);
+    updateSelectedFileList(input);
+  }
 });
 
 const api = async (path, options = {}) => {
@@ -1658,7 +1683,10 @@ on("#productForm", "submit", async (event) => {
   try {
     const result = await api("/seller/products", { method: "POST", body: formData });
     form.reset();
-    form.querySelectorAll("input[type='file'][data-file-list]").forEach(updateSelectedFileList);
+    form.querySelectorAll("input[type='file'][data-file-list]").forEach((input) => {
+      input._poohterFiles = [];
+      updateSelectedFileList(input);
+    });
     await loadDashboard();
     showToast("Product submitted", "success");
   } catch (error) {
