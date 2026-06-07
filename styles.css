@@ -357,6 +357,15 @@ textarea { min-height: 116px; padding: 12px 13px; resize: vertical; }
   border-color: var(--primary);
   color: var(--primary);
 }
+.danger-btn {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+.danger-btn:hover {
+  border-color: #ef4444;
+  color: #991b1b;
+}
 
 .app {
   min-height: 100vh;

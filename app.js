@@ -1317,7 +1317,11 @@ const renderProducts = () => {
               <span class="muted">${mediaDetails}</span>
             </td>
             <td>
-              ${product.product_uid ? `<button class="mini-btn" data-receipt="${product.id}">Download</button><span class="muted">${product.product_uid}</span>` : '<span class="muted">After approval</span>'}
+              <div class="row-actions">
+                ${product.product_uid ? `<button class="mini-btn" data-receipt="${product.id}">Download</button>` : '<span class="muted">After approval</span>'}
+                <button class="mini-btn danger-btn" data-delete-product="${product.id}" data-product-name="${escapeHtml(product.name || "")}">Delete</button>
+              </div>
+              ${product.product_uid ? `<span class="muted">${product.product_uid}</span>` : ""}
             </td>
           </tr>
         `;
@@ -1756,9 +1760,37 @@ on("#orderFilter", "change", renderOrders);
 on("#productSearch", "input", renderProducts);
 on("#productsList", "click", (event) => {
   if (openProductImageViewerFromTarget(event.target)) return;
-  const button = event.target.closest("[data-receipt]");
-  if (!button) return;
-  downloadReceipt(button.dataset.receipt);
+  const deleteButton = event.target.closest("[data-delete-product]");
+  if (deleteButton) {
+    const productName = deleteButton.dataset.productName || "";
+    const typedName = window.prompt(`Type the exact English product name to delete:\n\n${productName}`);
+    if (typedName === null) return;
+    if (typedName.trim() !== productName.trim()) {
+      showToast("Product name did not match. Product was not deleted.", "error");
+      return;
+    }
+    deleteButton.disabled = true;
+    deleteButton.textContent = "Deleting...";
+    api(`/seller/products/${deleteButton.dataset.deleteProduct}`, {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: typedName.trim() }),
+    })
+      .then(async (result) => {
+        await loadDashboard();
+        showToast(result.message || "Product deleted", "success");
+      })
+      .catch((error) => {
+        showToast(error.message, "error");
+      })
+      .finally(() => {
+        deleteButton.disabled = false;
+        deleteButton.textContent = "Delete";
+      });
+    return;
+  }
+  const receiptButton = event.target.closest("[data-receipt]");
+  if (receiptButton) downloadReceipt(receiptButton.dataset.receipt);
 });
 on("#wholesaleProducts", "input", (event) => {
   const quantityInput = event.target.closest("[name='quantity'][data-unit-price]");
