@@ -105,9 +105,18 @@ const updateSelectedFileList = (input) => {
     list.textContent = isVideo ? "No video selected" : "No images selected";
     return;
   }
-  list.innerHTML = files
-    .map((file, index) => `<span>${isVideo ? "Video" : `Image ${index + 1}`}: ${escapeHtml(file.name)}</span>`)
-    .join("");
+  if (isVideo) {
+    list.innerHTML = `<strong>${escapeHtml(files[0].name)} video is added.</strong><span>Video: ${escapeHtml(files[0].name)} added</span>`;
+    return;
+  }
+  const names = files.map((file) => file.name);
+  const joinedNames = names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  list.innerHTML = `
+    <strong>${escapeHtml(joinedNames)} ${files.length === 1 ? "image is" : "images are"} added.</strong>
+    ${files.map((file, index) => `<span>Image ${index + 1}: ${escapeHtml(file.name)} added</span>`).join("")}
+  `;
 };
 
 document.addEventListener("change", (event) => {
