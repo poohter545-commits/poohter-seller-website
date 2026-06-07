@@ -279,8 +279,16 @@
               <label>Price <input name="price" type="number" min="1" required placeholder="3200" /></label>
               <label>Expected stock <input name="expected_stock" type="number" min="0" value="0" /></label>
               <label class="wide">Description <textarea name="description" required placeholder="Describe material, quality, and buyer benefits."></textarea></label>
-              <label>Product images <input name="product_images" type="file" accept="image/png,image/jpeg" multiple /></label>
-              <label>Product video <input name="product_video" type="file" accept="video/mp4" /></label>
+              <label>Product images
+                <input name="product_images" type="file" accept="image/png,image/jpeg" multiple data-file-list="sellerProductImages" />
+                <span class="file-help">JPG or PNG images, up to 5 files.</span>
+                <span class="selected-files" id="sellerProductImages">No images selected</span>
+              </label>
+              <label>Product video
+                <input name="product_video" type="file" accept="video/mp4" data-file-list="sellerProductVideo" data-file-kind="video" />
+                <span class="file-help">MP4 video, up to 10MB.</span>
+                <span class="selected-files" id="sellerProductVideo">No video selected</span>
+              </label>
               <label class="checkbox-field wide">
                 <input name="admin_media_required" type="checkbox" value="true" />
                 <span>Ask admin team to create product photos and video</span>

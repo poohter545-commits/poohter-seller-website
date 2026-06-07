@@ -2057,6 +2057,33 @@ select:focus {
   background: #eff6ff;
 }
 
+.file-help {
+  display: block;
+  margin-top: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.selected-files {
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.selected-files span {
+  min-width: 0;
+  padding: 7px 9px;
+  overflow-wrap: anywhere;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
 .primary-btn,
 .primary-link {
   min-height: 48px;

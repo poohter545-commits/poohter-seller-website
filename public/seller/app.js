@@ -96,6 +96,25 @@ document.addEventListener("change", (event) => {
   if (box) box.textContent = count ? `${count} file${count === 1 ? "" : "s"} selected` : box.dataset.placeholder || box.textContent;
 });
 
+const updateSelectedFileList = (input) => {
+  const list = input.dataset.fileList ? $(`#${input.dataset.fileList}`) : null;
+  if (!list) return;
+  const files = Array.from(input.files || []);
+  const isVideo = input.dataset.fileKind === "video";
+  if (!files.length) {
+    list.textContent = isVideo ? "No video selected" : "No images selected";
+    return;
+  }
+  list.innerHTML = files
+    .map((file, index) => `<span>${isVideo ? "Video" : `Image ${index + 1}`}: ${escapeHtml(file.name)}</span>`)
+    .join("");
+};
+
+document.addEventListener("change", (event) => {
+  const input = event.target.closest("input[type='file'][data-file-list]");
+  if (input) updateSelectedFileList(input);
+});
+
 const api = async (path, options = {}) => {
   const headers = options.headers ? { ...options.headers } : {};
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
@@ -1630,6 +1649,7 @@ on("#productForm", "submit", async (event) => {
   try {
     const result = await api("/seller/products", { method: "POST", body: formData });
     form.reset();
+    form.querySelectorAll("input[type='file'][data-file-list]").forEach(updateSelectedFileList);
     await loadDashboard();
     showToast("Product submitted", "success");
   } catch (error) {
