@@ -96,29 +96,6 @@ document.addEventListener("change", (event) => {
   if (box) box.textContent = count ? `${count} file${count === 1 ? "" : "s"} selected` : box.dataset.placeholder || box.textContent;
 });
 
-const updateSelectedFileList = (input) => {
-  const list = input.dataset.fileList ? $(`#${input.dataset.fileList}`) : null;
-  if (!list) return;
-  const files = Array.from(input.files || []);
-  const isVideo = input.dataset.fileKind === "video";
-  if (!files.length) {
-    list.textContent = isVideo ? "No video selected" : "No images selected";
-    return;
-  }
-  if (isVideo) {
-    list.innerHTML = `<strong>${escapeHtml(files[0].name)} video is added.</strong><span>Video: ${escapeHtml(files[0].name)} added</span>`;
-    return;
-  }
-  const names = files.map((file) => file.name);
-  const joinedNames = names.length === 1
-    ? names[0]
-    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
-  list.innerHTML = `
-    <strong>${escapeHtml(joinedNames)} ${files.length === 1 ? "image is" : "images are"} added.</strong>
-    ${files.map((file, index) => `<span>Image ${index + 1}: ${escapeHtml(file.name)} added</span>`).join("")}
-  `;
-};
-
 const fileKey = (file) => `${file.name}:${file.size}:${file.lastModified}`;
 
 const mergeSelectedFiles = (input) => {
@@ -141,12 +118,61 @@ const mergeSelectedFiles = (input) => {
   input._poohterFiles = finalFiles;
 };
 
+const setInputFiles = (input, files) => {
+  if (typeof DataTransfer === "undefined") return;
+  const transfer = new DataTransfer();
+  files.forEach((file) => transfer.items.add(file));
+  input.files = transfer.files;
+  input._poohterFiles = files;
+};
+
+const updateSelectedFileList = (input) => {
+  const list = input.dataset.fileList ? $(`#${input.dataset.fileList}`) : null;
+  if (!list) return;
+  const files = Array.from(input.files || []);
+  const isVideo = input.dataset.fileKind === "video";
+  if (!files.length) {
+    list.textContent = isVideo ? "No video selected" : "No images selected";
+    return;
+  }
+  if (isVideo) {
+    list.innerHTML = `<strong>${escapeHtml(files[0].name)} video is added.</strong><span>Video: ${escapeHtml(files[0].name)} added</span>`;
+    return;
+  }
+  const names = files.map((file) => file.name);
+  const joinedNames = names.length === 1
+    ? names[0]
+    : `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+  list.innerHTML = `
+    <strong>${escapeHtml(joinedNames)} ${files.length === 1 ? "image is" : "images are"} added.</strong>
+    ${files.map((file, index) => `
+      <span class="selected-file-item">
+        <span>Image ${index + 1}: ${escapeHtml(file.name)} added</span>
+        <button type="button" data-remove-file="${index}" aria-label="Remove ${escapeHtml(file.name)}">Remove</button>
+      </span>
+    `).join("")}
+  `;
+};
+
 document.addEventListener("change", (event) => {
   const input = event.target.closest("input[type='file'][data-file-list]");
   if (input) {
     mergeSelectedFiles(input);
     updateSelectedFileList(input);
   }
+});
+
+document.addEventListener("click", (event) => {
+  const removeButton = event.target.closest("[data-remove-file]");
+  if (!removeButton) return;
+  const list = removeButton.closest("[id]");
+  if (!list) return;
+  const input = document.querySelector(`input[type='file'][data-file-list='${list.id}']`);
+  if (!input || input.dataset.fileKind === "video") return;
+  const removeIndex = Number(removeButton.dataset.removeFile);
+  const files = Array.from(input.files || []).filter((_, index) => index !== removeIndex);
+  setInputFiles(input, files);
+  updateSelectedFileList(input);
 });
 
 const api = async (path, options = {}) => {

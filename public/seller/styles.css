@@ -2145,6 +2145,36 @@ select:focus {
   color: #0f172a;
 }
 
+.selected-file-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.selected-file-item span {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.selected-file-item button {
+  flex: 0 0 auto;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 1px solid #fecaca;
+  border-radius: 7px;
+  background: #fef2f2;
+  color: #b91c1c;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.selected-file-item button:hover {
+  border-color: #ef4444;
+  color: #991b1b;
+}
+
 .primary-btn,
 .primary-link {
   min-height: 48px;
