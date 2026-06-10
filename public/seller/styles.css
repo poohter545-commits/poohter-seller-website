@@ -1402,6 +1402,35 @@ td .media-chip + .muted {
   font-size: 18px;
   font-weight: 900;
 }
+.wholesale-profit-highlight {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border: 2px solid #f97316;
+  border-radius: 8px;
+  background: #fff7ed;
+  box-shadow: 0 12px 28px rgba(249, 115, 22, 0.18);
+}
+.wholesale-profit-highlight span {
+  color: #9a3412;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+.wholesale-profit-highlight strong {
+  color: #c2410c;
+  font-size: 24px;
+  font-weight: 900;
+  line-height: 1.15;
+}
+.wholesale-profit-highlight small {
+  color: #7c2d12;
+  font-weight: 800;
+}
+.wholesale-profit-highlight b {
+  color: #c2410c;
+}
 .wholesale-payment-box {
   display: grid;
   grid-template-columns: 74px 1fr;

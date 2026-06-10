@@ -361,11 +361,20 @@ const wholesaleDescriptionLines = (product) => {
     lines.push(`Seller price per product: ${money(sellerPrice)}`);
   }
   if (unitProfit > 0) {
-    const stock = Math.max(0, Number(product.available_stock || 0));
     lines.push(`Expected profit per product: ${money(unitProfit)}`);
-    lines.push(`Expected profit for all stock (${stock} units): ${money(unitProfit * stock)}`);
   }
   return lines;
+};
+const wholesaleProfitHtml = (unitProfit, quantity) => {
+  if (!(unitProfit > 0)) return "";
+  const cleanQuantity = Math.max(0, Number(quantity || 0));
+  return `
+    <div class="wholesale-profit-highlight" data-unit-profit="${unitProfit}">
+      <span data-wholesale-profit-label>Expected profit for selected stock (${cleanQuantity} units)</span>
+      <strong data-wholesale-profit>${money(unitProfit * cleanQuantity)}</strong>
+      <small>Profit changes automatically when quantity changes.</small>
+    </div>
+  `;
 };
 const normalizeOrderStatus = (status = "pending") => ({
   packed: "accepted",
@@ -697,6 +706,7 @@ const wholesaleProductDetailHtml = (product) => {
             <span>Total amount before request</span>
             <strong data-wholesale-total>${money(initialTotal)}</strong>
           </div>
+          ${wholesaleProfitHtml(unitProfit, minOrder)}
           <div class="wholesale-payment-box">
             <img data-wholesale-qr src="${wholesalePaymentQrUrl(initialTotal)}" alt="Easypaisa payment QR for ${WHOLESALE_PAYMENT.accountNumber}" />
             <div>
@@ -1843,8 +1853,16 @@ on("#wholesaleProducts", "input", (event) => {
   const total = Math.max(0, quantity) * unitPrice;
   const totalTarget = form?.querySelector("[data-wholesale-total]");
   const qrTarget = form?.querySelector("[data-wholesale-qr]");
+  const profitBox = form?.querySelector(".wholesale-profit-highlight");
+  const profitLabel = form?.querySelector("[data-wholesale-profit-label]");
+  const profitTarget = form?.querySelector("[data-wholesale-profit]");
   if (totalTarget) totalTarget.textContent = money(total);
   if (qrTarget) qrTarget.src = wholesalePaymentQrUrl(total);
+  if (profitBox && profitTarget) {
+    const unitProfit = Number(profitBox.dataset.unitProfit || 0);
+    profitTarget.textContent = money(Math.max(0, quantity) * unitProfit);
+  }
+  if (profitLabel) profitLabel.textContent = `Expected profit for selected stock (${Math.max(0, quantity)} units)`;
 });
 on("#wholesaleProducts", "submit", async (event) => {
   const form = event.target.closest("[data-wholesale-order]");
