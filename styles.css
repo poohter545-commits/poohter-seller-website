@@ -1293,6 +1293,12 @@ td .media-chip + .muted {
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
+.wholesale-detail .wholesale-copy p {
+  display: block;
+  overflow: visible;
+  white-space: normal;
+  -webkit-line-clamp: unset;
+}
 .wholesale-meta {
   display: flex;
   gap: 8px;

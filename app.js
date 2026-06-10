@@ -353,6 +353,20 @@ const validateSignupStep = () => {
 };
 
 const money = (value) => `Rs ${Math.round(Number(value || 0)).toLocaleString()}`;
+const wholesaleDescriptionLines = (product) => {
+  const unitProfit = Number(product.expected_seller_profit || 0);
+  const sellerPrice = Number(product.wholesale_price || product.final_price || product.base_price || 0);
+  const lines = [product.description || "Wholesale supply ready for seller investment."];
+  if (sellerPrice > 0) {
+    lines.push(`Seller price per product: ${money(sellerPrice)}`);
+  }
+  if (unitProfit > 0) {
+    const stock = Math.max(0, Number(product.available_stock || 0));
+    lines.push(`Expected profit per product: ${money(unitProfit)}`);
+    lines.push(`Expected profit for all stock (${stock} units): ${money(unitProfit * stock)}`);
+  }
+  return lines;
+};
 const normalizeOrderStatus = (status = "pending") => ({
   packed: "accepted",
   shipped: "out_from_warehouse",
@@ -654,7 +668,8 @@ const wholesaleProductDetailHtml = (product) => {
   const gallery = wholesaleGalleryHtml(product);
   const imageCount = wholesaleProductImages(product).length;
   const productName = escapeHtml(productDisplayName(product));
-  const description = escapeHtml(product.description || "Wholesale supply ready for seller investment.");
+  const description = wholesaleDescriptionLines(product).map(escapeHtml).join("<br>");
+  const unitProfit = Number(product.expected_seller_profit || 0);
   const productUid = escapeHtml(product.product_uid || `Wholesale #${product.id}`);
   const supplierName = escapeHtml(product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier");
 
@@ -674,6 +689,7 @@ const wholesaleProductDetailHtml = (product) => {
         <div class="wholesale-meta">
           <span>Min ${minOrder} units</span>
           <span>${availableStock} available</span>
+          ${unitProfit > 0 ? `<span>${money(unitProfit)} profit / product</span>` : ""}
           <span>${imageCount} product image${imageCount === 1 ? "" : "s"}</span>
         </div>
         <form class="wholesale-order-form" data-wholesale-order="${product.id}">
