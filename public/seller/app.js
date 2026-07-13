@@ -625,24 +625,16 @@ const wholesaleCatalogCardHtml = (product) => {
   `;
 };
 
-const wholesaleSupplierKey = (product = {}) => String(
-  product.wholesaler_id ||
-  product.wholesaler_user_id ||
-  product.supplier_id ||
-  product.wholesaler_email ||
-  product.wholesaler_phone ||
-  product.wholesaler_shop ||
-  product.wholesaler_name ||
-  "unknown"
-).trim();
+const wholesaleSupplierName = (item = {}) =>
+  item.wholesaler_display || (item.wholesaler_code ? `Wholesaler ${item.wholesaler_code}` : "Wholesaler");
+
+const wholesaleSupplierKey = (product = {}) => String(product.wholesaler_code || "unknown").trim();
 
 const wholesaleSupplierList = (products = []) => [...products.reduce((map, product) => {
   const id = wholesaleSupplierKey(product);
   const current = map.get(id) || {
     id,
-    shop: product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier",
-    city: product.wholesaler_city || "Wholesale city",
-    phone: product.wholesaler_phone || "",
+    shop: wholesaleSupplierName(product),
     products: [],
   };
   current.products.push(product);
@@ -652,15 +644,14 @@ const wholesaleSupplierList = (products = []) => [...products.reduce((map, produ
 
 const wholesalerCardHtml = (wholesaler) => {
   const stock = wholesaler.products.reduce((sum, product) => sum + Number(product.available_stock || 0), 0);
-  const initials = escapeHtml(String(wholesaler.shop || "W").trim().slice(0, 1).toUpperCase() || "W");
-  const contact = [wholesaler.city, wholesaler.phone].filter(Boolean).join(" - ");
+  const initials = "W";
   return `
     <button class="wholesaler-card" type="button" data-wholesaler-id="${escapeHtml(wholesaler.id)}">
       <span class="wholesaler-avatar">${initials}</span>
       <div>
         <span class="muted">Wholesaler</span>
         <h3>${escapeHtml(wholesaler.shop)}</h3>
-        <p>${escapeHtml(contact || "Wholesale supplier")}</p>
+        <p>Verified Poohter wholesaler</p>
       </div>
       <div class="wholesale-meta">
         <span>${wholesaler.products.length} product${wholesaler.products.length === 1 ? "" : "s"}</span>
@@ -680,7 +671,7 @@ const wholesaleProductDetailHtml = (product) => {
   const description = wholesaleDescriptionLines(product).map(escapeHtml).join("<br>");
   const unitProfit = Number(product.expected_seller_profit || 0);
   const productUid = escapeHtml(product.product_uid || `Wholesale #${product.id}`);
-  const supplierName = escapeHtml(product.wholesaler_shop || product.wholesaler_name || "Wholesale supplier");
+  const supplierName = escapeHtml(wholesaleSupplierName(product));
 
   return `
     <article class="wholesale-card">
@@ -718,6 +709,7 @@ const wholesaleProductDetailHtml = (product) => {
           <div class="wholesale-field-group">
             <label><span>Qty</span><input name="quantity" type="number" min="${minOrder}" max="${availableStock}" value="${minOrder}" data-unit-price="${Number(product.wholesale_price || 0)}" required /></label>
             <label><span>Note</span><input name="note" placeholder="Optional note for admin" /></label>
+            <label class="wholesale-receipt-field"><span>Receipt</span><input name="payment_receipt" type="file" accept="image/png,image/jpeg,image/webp,application/pdf" required /></label>
             <button class="mini-btn" type="submit">Request supply</button>
           </div>
         </form>
@@ -1456,7 +1448,7 @@ const renderWholesale = () => {
         <div>
           <span class="muted">Selected wholesaler</span>
           <h3>${escapeHtml(selectedWholesaler.shop)}</h3>
-          <p>${escapeHtml([selectedWholesaler.city, selectedWholesaler.phone].filter(Boolean).join(" - ") || "Wholesale supplier")}</p>
+          <p>Verified Poohter wholesaler</p>
         </div>
         <button class="outline-btn" type="button" data-wholesale-supplier-back>All wholesalers</button>
       </div>
@@ -1470,7 +1462,7 @@ const renderWholesale = () => {
         <div>
           <span class="muted">Product order</span>
           <h3>${escapeHtml(productDisplayName(selectedProduct))}</h3>
-          <p>${escapeHtml(selectedProduct.wholesaler_shop || selectedProduct.wholesaler_name || "Wholesale supplier")}</p>
+          <p>${escapeHtml(wholesaleSupplierName(selectedProduct))}</p>
         </div>
         <button class="outline-btn" type="button" data-wholesale-product-back>Back to products</button>
       </div>
@@ -1486,7 +1478,7 @@ const renderWholesale = () => {
         .map((order) => `
           <tr>
             <td><strong>${order.order_code}</strong><span class="muted">${order.linked_product_uid || "Product ID after acceptance"}</span></td>
-            <td><strong>${order.product_name}</strong><span class="muted">${order.wholesaler_shop || order.wholesaler_name}</span></td>
+            <td><strong>${order.product_name}</strong><span class="muted">${escapeHtml(wholesaleSupplierName(order))}</span></td>
             <td>${order.quantity}</td>
             <td><strong>${money(order.total_price)}</strong></td>
             <td><span class="badge ${order.status}">${wholesaleStatusLabel(order.status)}</span></td>
@@ -1877,14 +1869,14 @@ on("#wholesaleProducts", "submit", async (event) => {
   );
   if (!confirmed) return;
   try {
+    if (!formData.get("payment_receipt") || !formData.get("payment_receipt").size) {
+      showToast("Upload payment receipt before sending wholesale request", "error");
+      return;
+    }
+    formData.append("product_id", form.dataset.wholesaleOrder);
     await api("/seller/wholesale/orders", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        product_id: form.dataset.wholesaleOrder,
-        quantity,
-        note: formData.get("note"),
-      }),
+      body: formData,
     });
     form.reset();
     await loadDashboard();
