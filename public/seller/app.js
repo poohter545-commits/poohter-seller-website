@@ -80,6 +80,25 @@ document.addEventListener("click", (event) => {
   updatePasswordToggle(button, shouldShow);
 });
 
+document.addEventListener("click", async (event) => {
+  const copyButton = event.target.closest("[data-copy-value]");
+  if (!copyButton) return;
+  const value = copyButton.dataset.copyValue || "";
+  try {
+    await navigator.clipboard.writeText(value);
+  } catch {
+    return;
+  }
+  const label = copyButton.querySelector("[data-copy-action]");
+  if (label) {
+    const original = label.textContent;
+    label.textContent = "Copied!";
+    setTimeout(() => {
+      label.textContent = original;
+    }, 1500);
+  }
+});
+
 const setButtonLoading = (button, isLoading, text) => {
   if (!button) return;
   if (!button.dataset.idleText) button.dataset.idleText = button.textContent;
@@ -175,7 +194,38 @@ document.addEventListener("click", (event) => {
   updateSelectedFileList(input);
 });
 
-const api = async (path, options = {}) => {
+// Refreshes the short-lived access token in the background using the
+// long-lived refresh token, so a seller left idle past token expiry doesn't
+// get bounced to "invalid token" errors until they explicitly log out.
+let refreshingPromise = null;
+const refreshAccessToken = async () => {
+  if (refreshingPromise) return refreshingPromise;
+  refreshingPromise = (async () => {
+    try {
+      const refreshToken = localStorage.getItem("poohterSellerRefreshToken");
+      if (!refreshToken) return null;
+      const response = await fetch(`${API_BASE}/seller/refresh-token`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refreshToken }),
+      });
+      if (!response.ok) return null;
+      const data = await response.json().catch(() => null);
+      if (!data?.token) return null;
+      state.token = data.token;
+      localStorage.setItem("poohterSellerToken", data.token);
+      if (data.refreshToken) localStorage.setItem("poohterSellerRefreshToken", data.refreshToken);
+      return data.token;
+    } catch {
+      return null;
+    } finally {
+      refreshingPromise = null;
+    }
+  })();
+  return refreshingPromise;
+};
+
+const api = async (path, options = {}, isRetry = false) => {
   const headers = options.headers ? { ...options.headers } : {};
   if (state.token) headers.Authorization = `Bearer ${state.token}`;
   const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
@@ -186,6 +236,10 @@ const api = async (path, options = {}) => {
     data = {};
   }
   if (!response.ok) {
+    if (response.status === 401 && !isRetry && state.token && path !== "/seller/refresh-token") {
+      const newToken = await refreshAccessToken();
+      if (newToken) return api(path, options, true);
+    }
     const error = new Error(data.error || data.message || "Request failed");
     error.status = response.status;
     throw error;
@@ -193,10 +247,11 @@ const api = async (path, options = {}) => {
   return data;
 };
 
-const setSession = ({ token, seller }) => {
+const setSession = ({ token, refreshToken, seller }) => {
   state.token = token;
   state.seller = seller;
   localStorage.setItem("poohterSellerToken", token);
+  if (refreshToken) localStorage.setItem("poohterSellerRefreshToken", refreshToken);
   localStorage.setItem("poohterSeller", JSON.stringify(seller));
 };
 
@@ -213,6 +268,7 @@ const clearSession = () => {
   state.payouts = null;
   state.profile = null;
   localStorage.removeItem("poohterSellerToken");
+  localStorage.removeItem("poohterSellerRefreshToken");
   localStorage.removeItem("poohterSeller");
 };
 
@@ -420,19 +476,19 @@ const orderStatusLabel = (status) => ({
   cancelled: "Cancelled",
 }[normalizeOrderStatus(status)] || String(status || "pending").replace(/_/g, " "));
 const WHOLESALE_PAYMENT = {
-  method: "Easypaisa",
-  accountNumber: "03428787873",
-  accountHolder: "Muhammad Saleeem",
+  method: "Meezan Bank",
+  accountNumber: "39010115503047",
+  accountHolder: "Poohter",
 };
-const wholesalePaymentQrUrl = (amount = 0) => {
-  const payload = [
-    "Poohter wholesale payment",
-    `${WHOLESALE_PAYMENT.method}: ${WHOLESALE_PAYMENT.accountNumber}`,
-    `Account holder: ${WHOLESALE_PAYMENT.accountHolder}`,
-    `Amount: ${money(amount)}`,
-  ].join("\n");
-  return `https://api.qrserver.com/v1/create-qr-code/?size=132x132&margin=8&data=${encodeURIComponent(payload)}`;
-};
+const copyableRowHtml = (label, value) => `
+  <button type="button" class="copy-row" data-copy-value="${escapeHtml(value)}">
+    <span>
+      <small>${escapeHtml(label)}</small>
+      <strong>${escapeHtml(value)}</strong>
+    </span>
+    <em data-copy-action>Copy</em>
+  </button>
+`;
 const getAssetUrl = (path) => {
   if (!path) return "";
   if (/^https?:/i.test(path)) return path;
@@ -699,12 +755,9 @@ const wholesaleProductDetailHtml = (product) => {
           </div>
           ${wholesaleProfitHtml(unitProfit, minOrder)}
           <div class="wholesale-payment-box">
-            <img data-wholesale-qr src="${wholesalePaymentQrUrl(initialTotal)}" alt="Easypaisa payment QR for ${WHOLESALE_PAYMENT.accountNumber}" />
-            <div>
-              <span>Pay with ${WHOLESALE_PAYMENT.method}</span>
-              <strong>${WHOLESALE_PAYMENT.accountNumber}</strong>
-              <small>Account holder: ${WHOLESALE_PAYMENT.accountHolder}</small>
-            </div>
+            <span>Pay via ${WHOLESALE_PAYMENT.method}</span>
+            ${copyableRowHtml("Account number", WHOLESALE_PAYMENT.accountNumber)}
+            ${copyableRowHtml("Account title", WHOLESALE_PAYMENT.accountHolder)}
           </div>
           <div class="wholesale-field-group">
             <label><span>Qty</span><input name="quantity" type="number" min="${minOrder}" max="${availableStock}" value="${minOrder}" data-unit-price="${Number(product.wholesale_price || 0)}" required /></label>
@@ -1844,12 +1897,10 @@ on("#wholesaleProducts", "input", (event) => {
   const unitPrice = Number(quantityInput.dataset.unitPrice || 0);
   const total = Math.max(0, quantity) * unitPrice;
   const totalTarget = form?.querySelector("[data-wholesale-total]");
-  const qrTarget = form?.querySelector("[data-wholesale-qr]");
   const profitBox = form?.querySelector(".wholesale-profit-highlight");
   const profitLabel = form?.querySelector("[data-wholesale-profit-label]");
   const profitTarget = form?.querySelector("[data-wholesale-profit]");
   if (totalTarget) totalTarget.textContent = money(total);
-  if (qrTarget) qrTarget.src = wholesalePaymentQrUrl(total);
   if (profitBox && profitTarget) {
     const unitProfit = Number(profitBox.dataset.unitProfit || 0);
     profitTarget.textContent = money(Math.max(0, quantity) * unitProfit);
@@ -1883,6 +1934,10 @@ on("#wholesaleProducts", "submit", async (event) => {
     showToast("Wholesale request sent to admin", "success");
   } catch (error) {
     showToast(error.message, "error");
+    if (error.status === 409) {
+      state.selectedWholesaleProductId = "";
+      await loadDashboard();
+    }
   }
 });
 on("#wholesaleProducts", "click", (event) => {
@@ -1914,6 +1969,7 @@ on("#wholesaleProducts", "click", (event) => {
 });
 on("#refreshBtn", "click", loadDashboard);
 on("#logoutBtn", "click", () => {
+  api("/seller/logout", { method: "POST" }).catch(() => {});
   clearSession();
   showApp(false);
   showToast("Logged out");
