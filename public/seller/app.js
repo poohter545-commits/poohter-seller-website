@@ -476,9 +476,9 @@ const orderStatusLabel = (status) => ({
   cancelled: "Cancelled",
 }[normalizeOrderStatus(status)] || String(status || "pending").replace(/_/g, " "));
 const WHOLESALE_PAYMENT = {
-  method: "Meezan Bank",
-  accountNumber: "39010115503047",
-  accountHolder: "Poohter",
+  method: "Bank Islami",
+  accountNumber: "303900448810001",
+  accountHolder: "Muhammad Sian",
 };
 const copyableRowHtml = (label, value) => `
   <button type="button" class="copy-row" data-copy-value="${escapeHtml(value)}">
